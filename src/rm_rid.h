@@ -27,6 +27,9 @@ typedef int SlotNum;
 //
 class RID {
 public:
+    static const PageNum NULL_PAGE_NUM = -1; // default value when not set
+    static const PageNum NULL_SLOT_NUM = -1; // default value when not set
+
     RID();                                         // Default constructor
     RID(PageNum pageNum, SlotNum slotNum);
     ~RID();                                        // Destructor
@@ -35,6 +38,8 @@ public:
     RC GetSlotNum(SlotNum &slotNum) const;         // Return slot number
 
 private:
+    PageNum pageNum; // page number
+    SlotNum slotNum; // slot number
 };
 
 #endif
