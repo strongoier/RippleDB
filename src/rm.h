@@ -91,11 +91,16 @@ public:
     RC OpenFile   (const char *fileName, RM_FileHandle &fileHandle);
 
     RC CloseFile  (RM_FileHandle &fileHandle);
+
+private:
+    PF_Manager *pPFMgr;
 };
 
 //
 // Print-error function
 //
 void RM_PrintError(RC rc);
+
+#define RM_RECORDSIZETOOLARGE (START_RM_ERR - 0)  // record size is too large to handle
 
 #endif
