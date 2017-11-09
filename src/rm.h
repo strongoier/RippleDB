@@ -23,10 +23,32 @@
 #include "pf.h"
 
 //
+// RM_FileHeader: Header structure for files
+//
+#define RM_PAGE_LIST_END -1
+#define RM_PAGE_FULL     -2
+struct RM_FileHeader {
+    int recordSize;           // record size
+    int numRecordsPerPage;    // number of records per page
+    PageNum numPages;         // number of pages in the file
+    PageNum firstFreePageNum; // firstFreePageNum can be any of these values:
+                              //  - the number of the first free page
+                              //  - RM_PAGE_LIST_END if there is no free page
+    int bitmapSize;           // sizeof(bitmap)
+
+    RM_FileHeader() {
+    }
+    RM_FileHeader(int recordSize, int numRecordsPerPage, PageNum numPages = 1, PageNum firstFreePageNum = RM_PAGE_LIST_END) :
+        recordSize(recordSize), numRecordsPerPage(numRecordsPerPage), numPages(numPages), firstFreePageNum(firstFreePageNum), bitmapSize((numRecordsPerPage - 1 / 8) + 1) {
+    }
+};
+
+//
 // RM_Record: RM Record interface
 //
 class RM_Record {
 public:
+    friend class RM_FileHandle;
     RM_Record ();
     ~RM_Record();
 
@@ -36,6 +58,12 @@ public:
 
     // Return the RID associated with the record
     RC GetRid (RID &rid) const;
+
+private:
+    RM_Record(const RM_Record &rec);
+    RM_Record &operator =(const RM_Record &rec);
+    char *pData;
+    RID rid;
 };
 
 //
@@ -43,6 +71,7 @@ public:
 //
 class RM_FileHandle {
 public:
+    friend class RM_Manager;
     RM_FileHandle ();
     ~RM_FileHandle();
 
@@ -57,6 +86,15 @@ public:
     // Forces a page (along with any contents stored in this class)
     // from the buffer pool to disk.  Default value forces all pages.
     RC ForcePages (PageNum pageNum = ALL_PAGES);
+
+private:
+    RM_FileHandle(const RM_FileHandle&);
+    RM_FileHandle& operator =(const RM_FileHandle&);
+    RC CheckRecExist(const RID &rid, PageNum &pageNum, SlotNum &slotNum, char *&pData) const;  // Check whether record with given rid is exist and get its info if exist
+    RM_FileHeader fileHeader;
+    PF_FileHandle pfFileHandle;
+    bool isOpen;
+    bool isHeaderModified;
 };
 
 //
@@ -86,14 +124,16 @@ public:
     RM_Manager    (PF_Manager &pfm);
     ~RM_Manager   ();
 
-    RC CreateFile (const char *fileName, int recordSize);
-    RC DestroyFile(const char *fileName);
-    RC OpenFile   (const char *fileName, RM_FileHandle &fileHandle);
+    RC CreateFile (const char* fileName, int recordSize);
+    RC DestroyFile(const char* fileName);
+    RC OpenFile   (const char* fileName, RM_FileHandle& fileHandle);
 
-    RC CloseFile  (RM_FileHandle &fileHandle);
+    RC CloseFile  (RM_FileHandle& fileHandle);
 
 private:
-    PF_Manager *pPFMgr;
+    RM_Manager(const RM_Manager&);
+    RM_Manager& operator =(const RM_Manager&);
+    PF_Manager* pPFMgr;
 };
 
 //
@@ -101,6 +141,12 @@ private:
 //
 void RM_PrintError(RC rc);
 
-#define RM_RECORDSIZETOOLARGE (START_RM_ERR - 0)  // record size is too large to handle
+#define RM_RECORDSIZETOOSMALL (START_RM_WARN + 0)  // record size is too small to handle
+#define RM_RECORDSIZETOOLARGE (START_RM_WARN + 1)  // record size is too large to handle
+#define RM_FILEHANDLECLOSED   (START_RM_WARN + 2)  // file handle is closed
+#define RM_RECORDUNREAD       (START_RM_WARN + 3)  // record has not been read
+#define RM_RECORDNOTEXIST     (START_RM_WARN + 4)  // there is no record with given RID
+
+#define RM_EOF -1 // to be changed
 
 #endif
