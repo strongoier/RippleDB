@@ -29,7 +29,7 @@ CFLAGS         = -m32 -g -O1 -Wall $(INC_DIRS)
 # Students: Please modify SOURCES variables as needed.
 #
 PF_SOURCES     = pf_error.cc pf_buffermgr.cc pf_filehandle.cc pf_pagehandle.cc pf_hashtable.cc pf_manager.cc
-RM_SOURCES     = rm_error.cc rm_manager.cc rm_filehandle.cc rm_filescan.cc rm_record.cc attr.cc rid.cc #statistics.cc
+RM_SOURCES     = rm_error.cc rm_manager.cc rm_filehandle.cc rm_filescan.cc rm_record.cc attr.cc rid.cc
 IX_SOURCES     = empty.cc
 SM_SOURCES     = empty.cc #sm_stub.cc printer.cc
 QL_SOURCES     = empty.cc #ql_manager_stub.cc

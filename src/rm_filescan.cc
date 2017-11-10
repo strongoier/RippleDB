@@ -5,6 +5,7 @@
 //
 
 #include "rm.h"
+#include <cstring>
 
 RM_FileScan::RM_FileScan() {
     isOpen = false;
