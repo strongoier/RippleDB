@@ -1,5 +1,24 @@
 #include "ix.h"
 
+// Insert a new index entry
+RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid) {
+    RC rc;
+    
+}
+
+// Delete a new index entry
+RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid) {
+
+}
+
+// Force index files to disk
+RC IX_IndexHandle::ForcePages() {
+    RC rc;
+    if (rc = _indexFileHandle.ForcePages())
+        return rc;
+    return OK_RC;
+}
+
 RC IX_IndexHandle::getRootPageNum(PageNum &rootPageNum) const {
     RC rc;
     char *pData;
@@ -15,10 +34,7 @@ RC IX_IndexHandle::setRootPageNum(const PageNum &rootPageNum) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(PageNum*)(pData + ROOTPAGENUMOFFSET) = rootPageNum;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -38,10 +54,7 @@ RC IX_IndexHandle::setAttrType(const AttrType &attrType) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(AttrType*)(pData + ATTRTYPEOFFSET) = attrType;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -61,10 +74,7 @@ RC IX_IndexHandle::setAttrLength(const size_t &attrLength) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(size_t*)(pData + ATTRLENGTHOFFSET) = attrLength;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -84,10 +94,7 @@ RC IX_IndexHandle::setKeysNum(const size_t &keysNum) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(size_t*)(pData + KEYSNUMOFFSET) = keysNum;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -107,10 +114,7 @@ RC IX_IndexHandle::setDataNum(const size_t &dataNum) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(size_t*)(pData + DATANUMOFFSET) = dataNum;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -130,10 +134,7 @@ RC IX_IndexHandle::setDataListHead(const PageNum &head) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(PageNum*)(pData + DATALISTHEADOFFSET) = head;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }
@@ -153,10 +154,7 @@ RC IX_IndexHandle::setDataListTail(const PageNum &tail) {
     if (rc = _infoPageHandle.GetData(pData))
         return rc;
     *(PageNum*)(pData + DATALISTTAILOFFSET) = tail;
-    PageNum infoPageNum;
-    if (rc = _infoPageHandle.GetPageNum(infoPageNum))
-        return rc;
-    if (rc = _indexFileHandle.MarkDirty(infoPageNum))
+    if (rc = _indexFileHandle.MarkDirty(_infoPageNum))
         return rc;
     return OK_RC;
 }

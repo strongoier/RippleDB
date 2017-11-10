@@ -9,8 +9,7 @@
 
 // Please do not include any other files than the ones below in this file.
 
-#include "redbase.h"  // Please don't change these lines
-#include "rm_rid.h"  // Please don't change these lines
+#include "global.h"  // Please don't change these lines
 #include "pf.h"
 
 class IX_Manager;
@@ -37,6 +36,15 @@ public:
 private:
     PF_FileHandle _indexFileHandle;
     PF_PageHandle _infoPageHandle;
+    PageNum _infoPageNum;
+    PF_PageHandle _rootPageHandle;
+    PageNum _rootPageNum;
+    AttrType _attrType;
+    size_t _attrLength;
+    size_t _keysNum;
+    size_t _dataNum;
+    PageNum _dataListHead;
+    PageNum _dataListTail;
 
     // need open info page and need to unpin OK
     RC getRootPageNum(PageNum &rootPageNum) const;

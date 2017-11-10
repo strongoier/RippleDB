@@ -24,11 +24,14 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo, AttrType attrType,
     // need to unpin OK
     if (rc = indexHandle._indexFileHandle.AllocatePage(indexHandle._infoPageHandle))
         return rc;
-    PF_PageHandle rootPage;
-    // need to unpin OK
-    if (rc = indexHandle._indexFileHandle.AllocatePage(rootPage))
+    if (rc = indexHandle._infoPageHandle.GetPageNum(indexHandle._infoPageNum))
         return rc;
-    if (rc = indexHandle.setRootPageNum(rootPage.GetPageNum))
+    // need to unpin OK
+    if (rc = indexHandle._indexFileHandle.AllocatePage(indexHandle._rootPageHandle))
+        return rc;
+    if (rc = indexHandle._rootPageHandle.GetPageNum(indexHandle._rootPageNum))
+        return rc;
+    if (rc = indexHandle.setRootPageNum(indexHandle._rootPageNum)
         return rc;
     if (rc = indexHandle.setAttrType(attrType))
         return rc;
@@ -38,25 +41,19 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo, AttrType attrType,
         return rc;
     if (rc = indexHandle.setDataNum(calcDataNum(attrLength)))
         return rc;
-    PageNum infoPageNum;
-    if (rc = indexHandle._infoPageHandle.GetPageNum(infoPageNum))
+    if (rc = indexHandle.setDataListHead(indexHandle._infoPageNum))
         return rc;
-    if (rc = indexHandle.setDataListHead(infoPageNum))
+    if (rc = indexHandle.setDataListTail(indexHandle._infoPageNum))
         return rc;
-    if (rc = indexHandle.setDataListTail(infoPageNum))
+    if (rc = indexHandle.setChildNum(indexHandle._rootPageHandle, 0))
         return rc;
-    PageNum rootPageNum;
-    if (rc = rootPage.GetPageNum(rootPageNum))
+    if (rc = indexHandle.setPrevPageNum(indexHandle._rootPageHandle, indexHandle._rootPageNum))
         return rc;
-    if (rc = indexHandle.setChildNum(rootPage, 0))
+    if (rc = indexHandle.setNextPageNum(indexHandle._rootPageHandle, indexHandle._rootPageNum))
         return rc;
-    if (rc = indexHandle.setPrevPageNum(rootPage, rootPageNum))
+    if (rc = indexHandle._indexFileHandle.UnpinPage(indexHandle._rootPageNum))
         return rc;
-    if (rc = indexHandle.setNextPageNum(rootPage, rootPageNum))
-        return rc;
-    if (rc = indexHandle._indexFileHandle.UnpinPage(rootPageNum))
-        return rc;
-    if (rc = indexHandle._indexFileHandle.UnpinPage(infoPageNum))
+    if (rc = indexHandle._indexFileHandle.UnpinPage(indexHandle._infoPageNum))
         return rc;
     if (rc = _PFManager.CloseFile(indexHandle._indexFileHandle));
         return rc;
@@ -86,16 +83,34 @@ RC IX_Manager::OpenIndex(const char *fileName, int indexNo, IX_IndexHandle &inde
     // need to unpin in CloseIndex function OK
     if (rc = indexHandle._indexFileHandle.GetFirstPage(indexHandle._infoPageHandle))
         return rc;
+    if (rc = indexHandle._infoPageHandle.GetPageNum(indexHandle._infoPageNum))
+        return rc;
+    if (rc = indexHandle.getRootPageNum(indexHandle._rootPageNum))
+        return rc;
+    // need to unpin in closeIndex function OK
+    if (rc = indexHandle._indexFileHandle.GetThisPage(indexHandle._rootPageNum, indexHandle._rootPageHandle))
+        return rc;
+    if (rc = indexHandle.getAttrType(indexHandle._attrType))
+        return rc;
+    if (rc = indexHandle.getAttrLength(indexHandle._attrLength))
+        return rc;
+    if (rc = indexHandle.getKeysNum(indexHandle._keysNum))
+        return rc;
+    if (rc = indexHandle.getDataNum(indexHandle._dataNum))
+        return rc;
+    if (rc = indexHandle.getDataListHead(indexHandle._dataListHead))
+        return rc;
+    if (rc = indexHandle.getDataListTail(indexHandle._dataListTail))
+        return rc;
     return OK_RC;
 }
 
 // Close an Index
 RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle) {
     RC rc;
-    PageNum infoPageNum;
-    if (rc = indexHandle._infoPageHandle.GetPageNum(infoPageNum))
+    if (rc = indexHandle._indexFileHandle.UnpinPage(indexHandle._rootPageNum))
         return rc;
-    if (rc = indexHandle._indexFileHandle.UnpinPage(infoPageNum))
+    if (rc = indexHandle._indexFileHandle.UnpinPage(indexHandle._infoPageNum))
         return rc;
     if (rc = _PFManager.CloseFile(indexHandle._indexFileHandle))
         return rc;
