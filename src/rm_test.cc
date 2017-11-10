@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <cstdlib>
 
-#include "redbase.h"
 #include "pf.h"
 #include "rm.h"
 
@@ -261,7 +260,7 @@ RC VerifyFile(RM_FileHandle &fh, int numRecs)
 
     RM_FileScan fs;
     if ((rc=fs.OpenScan(fh,INT,sizeof(int),offsetof(TestRec, num),
-                        NO_OP, NULL, NO_HINT)))
+                        NO_OP, NULL)))
         return (rc);
 
     // For each record in the file
