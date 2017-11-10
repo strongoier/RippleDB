@@ -16,7 +16,7 @@ RM_Record::~RM_Record() {
     }
 }
 
-RC RM_Record::GetData(char *&pData) const {
+RC RM_Record::GetData(char*& pData) const {
     if (this->pData == NULL) {
         return RM_RECORDUNREAD;
     }
@@ -24,7 +24,7 @@ RC RM_Record::GetData(char *&pData) const {
     return OK_RC;
 }
 
-RC RM_Record::GetRid(RID &rid) const {
+RC RM_Record::GetRid(RID& rid) const {
     if (this->pData == NULL) {
         return RM_RECORDUNREAD;
     }

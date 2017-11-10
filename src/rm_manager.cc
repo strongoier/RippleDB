@@ -5,7 +5,6 @@
 //
 
 #include "rm.h"
-//#include <cstring>
 
 RM_Manager::RM_Manager(PF_Manager &pfm) {
     pPFMgr = &pfm;
@@ -14,7 +13,7 @@ RM_Manager::RM_Manager(PF_Manager &pfm) {
 RM_Manager::~RM_Manager() {
 }
 
-RC RM_Manager::CreateFile(const char *fileName, int recordSize) {
+RC RM_Manager::CreateFile(const char* fileName, int recordSize) {
     RC rc;
     // check recordSize by calculating numRecordsPerPage
     if (recordSize <= 0) {
@@ -73,7 +72,7 @@ RC RM_Manager::CreateFile(const char *fileName, int recordSize) {
     return OK_RC;
 }
 
-RC RM_Manager::DestroyFile(const char *fileName) {
+RC RM_Manager::DestroyFile(const char* fileName) {
     RC rc;
     if ((rc = pPFMgr->DestroyFile(fileName))) {
         return rc;
@@ -81,7 +80,7 @@ RC RM_Manager::DestroyFile(const char *fileName) {
     return OK_RC;
 }
 
-RC RM_Manager::OpenFile(const char *fileName, RM_FileHandle &fileHandle) {
+RC RM_Manager::OpenFile(const char* fileName, RM_FileHandle& fileHandle) {
     RC rc;
     // open file
     PF_FileHandle pfFileHandle;
@@ -94,7 +93,7 @@ RC RM_Manager::OpenFile(const char *fileName, RM_FileHandle &fileHandle) {
         return rc;
     }
     // get header page data pointer
-    char *pData;
+    char* pData;
     if ((rc = pageHandle.GetData(pData))) {
         return rc;
     }
@@ -130,7 +129,7 @@ RC RM_Manager::CloseFile(RM_FileHandle &fileHandle) {
             return rc;
         }
         // get header page data pointer
-        char *pData;
+        char* pData;
         if ((rc = pageHandle.GetData(pData))) {
             return rc;
         }

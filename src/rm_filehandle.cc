@@ -14,7 +14,7 @@ RM_FileHandle::RM_FileHandle() {
 RM_FileHandle::~RM_FileHandle() {
 }
 
-RC RM_FileHandle::GetRec(const RID &rid, RM_Record &rec) const {
+RC RM_FileHandle::GetRec(const RID& rid, RM_Record& rec) const {
     RC rc;
     // check whether fileHandle is open
     if (!isOpen) {
@@ -23,7 +23,7 @@ RC RM_FileHandle::GetRec(const RID &rid, RM_Record &rec) const {
     // check whether record with given rid is exist and get its info if exist
     PageNum pageNum;
     SlotNum slotNum;
-    char *pData;
+    char* pData;
     if ((rc = CheckRecExist(rid, pageNum, slotNum, pData))) {
         return rc;
     }
@@ -33,7 +33,7 @@ RC RM_FileHandle::GetRec(const RID &rid, RM_Record &rec) const {
         delete[] rec.pData;
     }
     rec.pData = new char[fileHeader.recordSize];
-    memcpy(rec.pData, pData + sizeof(PageNum) + fileHeader.numRecordsPerPage / 8 + slotNum * fileHeader.recordSize, fileHeader.recordSize);
+    memcpy(rec.pData, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize, fileHeader.recordSize);
     // unpin page
     if ((rc = pfFileHandle.UnpinPage(pageNum))) {
         return rc;
@@ -69,11 +69,9 @@ RC RM_FileHandle::InsertRec(const char *pRecData, RID &rid) {
         for (int i = 0; i < fileHeader.bitmapSize; ++i) {
             pData[sizeof(PageNum) + i] = 0xff;
         }
-        for (int i = 0; i < fileHeader.recordSize; ++i) {
+        for (int i = 0; i < fileHeader.numRecordsPerPage; ++i) {
             pData[sizeof(PageNum) + i / 8] ^= 1 << (i & 7);
         }
-        // modify file header
-        ++fileHeader.numPages;
         isHeaderModified = true;
     } else {
         // get pageHandle of first free page
@@ -131,10 +129,10 @@ RC RM_FileHandle::DeleteRec(const RID &rid) {
     if (!isOpen) {
         return RM_FILEHANDLECLOSED;
     }
-    // check whether record with given rid is exist and get data pointer of its page if exist
+    // check whether record with given rid is exist and get its info if exist
     PageNum pageNum;
     SlotNum slotNum;
-    char *pData;
+    char* pData;
     if ((rc = CheckRecExist(rid, pageNum, slotNum, pData))) {
         return rc;
     }
@@ -145,7 +143,7 @@ RC RM_FileHandle::DeleteRec(const RID &rid) {
         isHeaderModified = true;
     }
     // mark slot as available
-    pData[sizeof(PageNum) + fileHeader.bitmapSize + slotNum / 8] ^= 1 << (slotNum & 7);
+    pData[sizeof(PageNum) + slotNum / 8] ^= 1 << (slotNum & 7);
     // mark page dirty
     if ((rc = pfFileHandle.MarkDirty(pageNum))) {
         return rc;
@@ -158,7 +156,7 @@ RC RM_FileHandle::DeleteRec(const RID &rid) {
     return OK_RC;
 }
 
-RC RM_FileHandle::UpdateRec(const RM_Record &rec) {
+RC RM_FileHandle::UpdateRec(const RM_Record& rec) {
     RC rc;
     // check whether fileHandle is open
     if (!isOpen) {
@@ -169,10 +167,10 @@ RC RM_FileHandle::UpdateRec(const RM_Record &rec) {
     if ((rc = rec.GetRid(rid))) {
         return rc;
     }
-    // check whether record with given rid is exist and get data pointer of its page if exist
+    // check whether record with given rid is exist and get its info if exist
     PageNum pageNum;
     SlotNum slotNum;
-    char *pData;
+    char* pData;
     if ((rc = CheckRecExist(rid, pageNum, slotNum, pData))) {
         return rc;
     }
@@ -204,7 +202,7 @@ RC RM_FileHandle::ForcePages(PageNum pageNum) {
     return OK_RC;
 }
 
-RC RM_FileHandle::CheckRecExist(const RID &rid, PageNum &pageNum, SlotNum &slotNum, char *&pData) const {
+RC RM_FileHandle::CheckRecExist(const RID& rid, PageNum& pageNum, SlotNum& slotNum, char*& pData) const {
     RC rc;
     // check whether rid is legal
     if ((rc = rid.GetPageNum(pageNum))) {
@@ -212,9 +210,6 @@ RC RM_FileHandle::CheckRecExist(const RID &rid, PageNum &pageNum, SlotNum &slotN
     }
     if ((rc = rid.GetSlotNum(slotNum))) {
         return rc;
-    }
-    if (pageNum < 1 || pageNum >= fileHeader.numPages || slotNum < 0 || slotNum >= fileHeader.numRecordsPerPage) {
-        return RM_RECORDNOTEXIST;
     }
     // get pageHandle
     PF_PageHandle pageHandle;
@@ -226,7 +221,10 @@ RC RM_FileHandle::CheckRecExist(const RID &rid, PageNum &pageNum, SlotNum &slotN
         return rc;
     }
     // check whether record with given rid is exist
-    if (!(pData[sizeof(PageNum) + fileHeader.bitmapSize + slotNum / 8] & (1 << (slotNum & 7)))) {
+    if (slotNum < 0 || slotNum >= fileHeader.numRecordsPerPage) {
+        return RM_RECORDNOTEXIST;
+    }
+    if (!(pData[sizeof(PageNum) + slotNum / 8] & (1 << (slotNum & 7)))) {
         return RM_RECORDNOTEXIST;
     }
     // success

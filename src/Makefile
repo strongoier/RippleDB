@@ -23,26 +23,19 @@ LEX            = flex
 # -O1 - Basic optimization
 # -Wall - All warnings
 # -DDEBUG_PF - This turns on the LOG file for lots of BufferMgr info
-CFLAGS         = -m32 -g -O1 -Wall $(STATS_OPTION) $(INC_DIRS)
-
-# The STATS_OPTION can be set to -DPF_STATS or to nothing to turn on and
-# off buffer manager statistics.  The student should not modify this
-# flag at all!
-STATS_OPTION   = -DPF_STATS
+CFLAGS         = -m32 -g -O1 -Wall $(INC_DIRS)
 
 #
 # Students: Please modify SOURCES variables as needed.
 #
-PF_SOURCES     = pf_buffermgr.cc pf_error.cc pf_filehandle.cc \
-                 pf_pagehandle.cc pf_hashtable.cc pf_manager.cc \
-                 pf_statistics.cc statistics.cc
-RM_SOURCES     = rm_manager.cc rm_filehandle.cc rm_record.cc rm_rid.cc statistics.cc
-IX_SOURCES     = statistics.cc
-SM_SOURCES     = statistics.cc #sm_stub.cc printer.cc
-QL_SOURCES     = statistics.cc #ql_manager_stub.cc
+PF_SOURCES     = pf_error.cc pf_buffermgr.cc pf_filehandle.cc pf_pagehandle.cc pf_hashtable.cc pf_manager.cc
+RM_SOURCES     = rm_error.cc rm_manager.cc rm_filehandle.cc rm_filescan.cc rm_record.cc attr.cc rid.cc #statistics.cc
+IX_SOURCES     = empty.cc
+SM_SOURCES     = empty.cc #sm_stub.cc printer.cc
+QL_SOURCES     = empty.cc #ql_manager_stub.cc
 UTILS_SOURCES  = #dbcreate.cc dbdestroy.cc redbase.cc
-PARSER_SOURCES = statistics.cc #scan.c parse.c nodes.c interp.c
-TESTER_SOURCES = pf_test1.cc pf_test2.cc pf_test3.cc rm_test.cc #ix_test.cc parser_test.cc
+PARSER_SOURCES = empty.cc #scan.c parse.c nodes.c interp.c
+TESTER_SOURCES = rm_test.cc #ix_test.cc parser_test.cc
 
 PF_OBJECTS     = $(addprefix $(BUILD_DIR), $(PF_SOURCES:.cc=.o))
 RM_OBJECTS     = $(addprefix $(BUILD_DIR), $(RM_SOURCES:.cc=.o))

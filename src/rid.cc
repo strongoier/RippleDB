@@ -1,10 +1,10 @@
 //
-// File:        rm_rid.cc
+// File:        rid.cc
 // Description: RID class implementation
 // Authors:     Yi Xu
 //
 
-#include "rm_rid.h"
+#include "global.h"
 
 RID::RID() {
     // use default values
