@@ -11,10 +11,87 @@
 
 #include "global.h"  // Please don't change these lines
 #include "pf.h"
+#include <map>
+using std::map;
 
 class IX_Manager;
 class IX_IndexHandle;
 class IX_IndexScan;
+struct TreeHeader;
+struct NodeHeader;
+
+enum NodeType {
+    EmptyNode,
+    LeafNode,
+    InternalNode,
+    OverflowNode
+};
+
+struct TreeHeader {
+    PageNum infoPNum;
+    PageNum rootPNum;
+    AttrType attrType;
+    int attrLength;
+    int childItemSize;
+    int maxChildNum;
+    bool duplicateValuesAllowed;
+    PageNum dataHeadPNum;
+    PageNum dataTailPNum;
+    PF_FileHandle* indexFH;
+    map<PageNum, char*> *pageMap;
+
+    RC GetPageData(PageNum pNum, NodeHeader *&pData);
+    RC AllocatePage(PageNum &pageNum, NodeHeader *&pageData);
+    RC UnpinPages();
+
+    RC Insert(char *pData, const RID& rid);
+    RC Delete(char *pData, const RID& rid);
+
+    RC SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf);
+};
+
+struct NodeHeader {
+    PageNum selfPNum;
+    NodeType nodeType;
+    PageNum parentPNum;
+    PageNum prevPNum;
+    PageNum nextPNum;
+    int childNum;
+    char* keys;
+    char* values;
+    TreeHeader *tree;
+
+    bool IsEmpty();
+    bool IsFull();
+    bool HavePrevPage();
+    bool HaveNextPage();
+    bool HaveParentPage();
+
+    char *key(int index);
+    RID *rid(int index);
+    PageNum *page(int index);
+
+    int UpperBound(char *pData);
+    int LowerBound(char *pData);
+    pair<int, int> EqualRange(char *pData);
+    bool BinarySearch(char *pData);
+
+    RC InsertRID(char *pData, const RID &rid);
+    RC InsertPage(char *pData, PageNum newPage);
+
+    RC ChildPage(int index, NodeHeader *&child);
+    RC PrevPage(NodeHeader *&prev);
+    RC NextPage(NodeHeader *&next);
+    RC ParentPage(NodeHeader *&parent);
+    RC ParentPrevKey(char *&key);
+    RC ParentNextKey(char *&key);
+
+    RC UpdateKey(char *oldKey, char *newKey);
+};
+
+namespace PFHelper {
+    RC AllocatePage(PF_FileHandle &fh, PF_PageHandle &ph, PageNum &pNum, char *&pData);
+}
 
 //
 // IX_IndexHandle: IX Index File interface
@@ -34,42 +111,15 @@ public:
     // Force index files to disk
     RC ForcePages();
 private:
-    PF_FileHandle _indexFileHandle;
-    PF_PageHandle _infoPageHandle;
-    PageNum _infoPageNum;
-    PF_PageHandle _rootPageHandle;
-    PageNum _rootPageNum;
-    AttrType _attrType;
-    size_t _attrLength;
-    size_t _keysNum;
-    size_t _dataNum;
-    PageNum _dataListHead;
-    PageNum _dataListTail;
+    PF_FileHandle indexFH;
+    TreeHeader *treeHeader;
+    map<PageNum, char*> pageMap;
 
-    // need open info page and need to unpin OK
-    RC getRootPageNum(PageNum &rootPageNum) const;
-    RC setRootPageNum(const PageNum &rootPageNum);
-    RC getAttrType(AttrType &attrType) const;
-    RC setAttrType(const AttrType &attrType);
-    RC getAttrLength(size_t &attrLength) const;
-    RC setAttrLength(const size_t &attrLength);
-    RC getKeysNum(size_t &keysNum) const;
-    RC setKeysNum(const size_t &keysNum);
-    RC getDataNum(size_t &dataNum) const;
-    RC setDataNum(const size_t &dataNum);
-    RC getDataListHead(PageNum &head) const;
-    RC setDataListHead(const PageNum &head);
-    RC getDataListTail(PageNum &tail) const;
-    RC setDataListTail(const PageNum &tail);
+    RC CreateIndex(AttrType attrType, int attrLength);
 
-    // need open not leaf page and need to unpin
-    RC getChildNum(const PF_PageHandle &notLeafPage, size_t &childNum) const;
-    RC setChildNum(const PF_PageHandle &notLeafPage, const size_t &childNum);
-    RC getPrevPageNum(const PF_PageHandle &notLeafPage, PageNum &prevPageNum) const;
-    RC setPrevPageNum(const PF_PageHandle &notLeafPage, const PageNum &prevPageNum);
-    RC getNextPageNum(const PF_PageHandle &notLeafPage, PageNum &nextPageNum) const;
-    RC setNextPageNum(const PF_PageHandle &notLeafPage, const PageNum &nextPageNum);
-    RC getChildArray(const PF_PageHandle &notLeafPage, char *childArray);
+    RC OpenIndex();
+
+    RC CloseIndex();
 };
 
 //
@@ -81,10 +131,7 @@ public:
     ~IX_IndexScan();
 
     // Open index scan
-    RC OpenScan(const IX_IndexHandle &indexHandle,
-                CompOp compOp,
-                void *value,
-                ClientHint  pinHint = NO_HINT);
+    RC OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void *value);
 
     // Get the next matching entry return IX_EOF if no more matching
     // entries.
@@ -116,23 +163,11 @@ public:
     // Close an Index
     RC CloseIndex(IX_IndexHandle &indexHandle);
 
-    //test innerFunctions
-    static void test();
-
 private:
-    PF_Manager &_PFManager;
-
-    //test if length match type
-    static RC isValidAttrLength(AttrType attrType, int attrLength);
+    PF_Manager &PFMgr;
 
     //generate a unique file name
-    static RC generateIndexFileName(const char *fileName, int indexNo, char *&file);
-
-    //clac the number of keys(points) in not leaf node
-    static size_t calcKeysNum(int attrLength);
-
-    //clac the number of keys(RIDs) in leaf node
-    static size_t calcDataNum(int attrLength);
+    static char* generateIndexFileName(const char *fileName, int indexNo);
 };
 
 //
@@ -140,48 +175,15 @@ private:
 //
 void IX_PrintError(RC rc);
 
-#define IX_NOTVALIDATTRLENGTH (START_IX_WARN + 0) //length not match type
-#define IX_EOF (START_IX_WARN + 1) //end of file
+#define IX_LENGTHNOTVALID (START_IX_WARN + 0)
+#define IX_INSERTRIDINFULLNODE (START_IX_WARN + 1)
+#define IX_INSERTRIDTOINTERNALNODE (START_IX_WARN + 2)
+#define IX_UPDATEKEYINLEAFNODE (START_IX_WARN + 3)
+#define IX_INSERTPAGETOLEAFNODE (START_IX_WARN + 4)
+#define IX_GETPARENTKEYINLEAFNODE (START_IX_WARN + 5)
 
-/*
-Info Page
-Size: 4096 - size(PageNum)
-rootPageNum: PageNum
-attrType: AttrType
-attrLength: size_t
-keysNum: size_t         number of keys(pointers) in non leaf node
-dataNum: size_t         number of data in leaf dataNum
-dataListHead: PageNum
-dataListTail: PageNum
-*/
+#define IX_ERROR(rc) { if (rc > 0 && rc < 100 || rc < 0 && rc >- -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) IX_PrintError(rc); printf("CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
-const size_t ROOTPAGENUMOFFSET = 0;
-const size_t ATTRTYPEOFFSET = ROOTPAGENUMOFFSET + sizeof(PageNum);
-const size_t ATTRLENGTHOFFSET = ATTRTYPEOFFSET + sizeof(AttrType);
-const size_t KEYSNUMOFFSET = ATTRLENGTHOFFSET + sizeof(size_t);
-const size_t DATANUMOFFSET = KEYSNUMOFFSET + sizeof(size_t);
-const size_t DATALISTHEADOFFSET = DATANUMOFFSET + sizeof(size_t);
-const size_t DATALISTTAILOFFSET = DATALISTHEADOFFSET + sizeof(PageNum);
-
-/*
-Not Leaf Page
-Size: 4096 - size(PageNum)
-childNum: size_t
-prevPageNum: PageNum
-nextPageNum: PageNum
-childArray: [attrLength + PageNum, ...]
-
-Leaf Page
-Size: 4096 - size(PageNum)
-childNum: size_t
-prevPageNum: PageNum
-nextPageNum: PageNum
-childArray: [attrLength + RID, ...]
-*/
-
-const size_t CHILDNUMOFFSET = 0;
-const size_t PREVPAGENUMOFFSET = CHILDNUMOFFSET + sizeof(size_t);
-const size_t NEXTPAGENUMOFFSET = PREVPAGENUMOFFSET + sizeof(PageNum);
-const size_t CHILDARRAYOFFSET = NEXTPAGENUMOFFSET + sizeof(PageNum);
+#define IX_PRINTSTACK { printf("FILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
 #endif

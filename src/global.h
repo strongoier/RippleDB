@@ -8,6 +8,8 @@
 #define GLOBAL_H
 
 #include <cstring>
+#include <utility>
+using std::pair;
 
 //
 // Globally-useful defines
@@ -101,6 +103,10 @@ public:
     static bool CheckAttrLengthValid(AttrType attrType, int attrLength);
     static void DeleteValue(AttrType attrType, void* value);
     static bool CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
+    static int lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static int upper_bound(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static pair<int, int> equal_range(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static bool binary_search(AttrType attrType, int attrLength, char* first, int len, char* value);
 };
 
 /********** RID **********/

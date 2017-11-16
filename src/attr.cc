@@ -5,6 +5,7 @@
 //
 
 #include "global.h"
+using namespace std;
 
 bool Attr::CheckAttrLengthValid(AttrType attrType, int attrLength) {
     switch (attrType) {
@@ -98,4 +99,43 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
             }
             break;
     }
+}
+
+int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
+    int half, middle, begin = 0;
+    while (len > 0) {
+        half = len >> 1;
+        middle = begin + half;
+        if (CompareAttr(attrType, attrLength, first + middle * attrLength, LT_OP, value)) {
+            begin = middle + 1;
+            len = len - half - 1;
+        }  
+        else
+            len = half;
+    }
+    return begin;
+}
+
+int Attr::upper_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
+    int half, middle, begin = 0;
+    while (len > 0) {
+        half = len >> 1;
+        middle = begin + half;
+        if (CompareAttr(attrType, attrLength, value, LT_OP, first + middle * attrLength))
+            len = half;
+        else {
+            begin = middle + 1;
+            len = len - half - 1;
+        }
+    }
+    return begin;
+}
+
+pair<int, int> Attr::equal_range(AttrType attrType, int attrLength, char* first, int len, char* value) {
+    return make_pair(lower_bound(attrType, attrLength, first, len, value), upper_bound(attrType, attrLength, first, len, value));
+}
+
+bool Attr::binary_search(AttrType attrType, int attrLength, char* first, int len, char* value) {
+    int i = lower_bound(attrType, attrLength, first, len, value);  
+    return i != len && !CompareAttr(attrType, attrLength, value, LT_OP, first + i * attrLength);
 }
