@@ -5,6 +5,7 @@
 //
 
 #include "global.h"
+#include <cstring>
 using namespace std;
 
 bool Attr::CheckAttrLengthValid(AttrType attrType, int attrLength) {
@@ -43,6 +44,9 @@ void Attr::DeleteValue(AttrType attrType, void* value) {
 }
 
 bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
+    if (valueB == NULL) {
+        return true;
+    }
     switch (attrType) {
         case INT:
             switch (compOp) {

@@ -32,10 +32,6 @@ static char* RM_WarnMsg[] = {
 void RM_PrintError(RC rc) {
     // Check the return code is within proper limits
     if (rc >= START_RM_WARN && rc <= END_RM_WARN) {
-        // Print warning
         cerr << "RM warning: " << RM_WarnMsg[rc - START_RM_WARN] << "\n";
-    } else {
-        // PF Error
-        PF_PrintError(rc);
     }
 }

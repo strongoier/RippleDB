@@ -1,5 +1,5 @@
 //
-// File:        rm_testshell.cc
+// File:        rm_test.cc
 // Description: Test RM component
 // Authors:     Jan Jannink
 //              Dallan Quass (quass@cs.stanford.edu)
@@ -14,12 +14,15 @@
 // interface.  For example, FileHandle no longer supports a Scan over the
 // relation.  All scans are done via a FileScan.
 //
+// Test 2-5 are added by Yi Xu
+//
 
 #include <cstdio>
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
 #include <cstdlib>
+#include <vector>
 
 #include "pf.h"
 #include "rm.h"
@@ -33,7 +36,8 @@ using namespace std;
 #define STRLEN      29               // length of string in testrec
 #define PROG_UNIT   50               // how frequently to give progress
                                       //   reports when adding lots of recs
-#define FEW_RECS   20                // number of records added in
+#define FEW_RECS   1000                // number of records added in
+#define MANY_RECS  10000
 
 //
 // Computes the offset of a field in a record (should be in <stddef.h>)
@@ -62,6 +66,9 @@ RM_Manager rmm(pfm);
 //
 RC Test1(void);
 RC Test2(void);
+RC Test3(void);
+RC Test4(void);
+RC Test5(void);
 
 void PrintError(RC rc);
 void LsFile(char *fileName);
@@ -82,11 +89,14 @@ RC GetNextRecScan(RM_FileScan &fs, RM_Record &rec);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       2               // number of tests
+#define NUM_TESTS       5               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
     Test1,
-    Test2
+    Test2,
+    Test3,
+    Test4,
+    Test5
 };
 
 //
@@ -473,7 +483,7 @@ RC Test1(void)
 }
 
 //
-// Test2 tests adding a few records to a file.
+// Test2 tests adding many records to a file.
 //
 RC Test2(void)
 {
@@ -484,8 +494,68 @@ RC Test2(void)
 
     if ((rc = CreateFile(FILENAME, sizeof(TestRec))) ||
         (rc = OpenFile(FILENAME, fh)) ||
-        (rc = AddRecs(fh, FEW_RECS)) ||
+        (rc = AddRecs(fh, MANY_RECS)) ||
         (rc = CloseFile(FILENAME, fh)))
+        return (rc);
+
+    LsFile(FILENAME);
+
+    if ((rc = OpenFile(FILENAME, fh)) ||
+        (rc = VerifyFile(fh, MANY_RECS)) ||
+        (rc = CloseFile(FILENAME, fh)))
+        return (rc);
+
+    if ((rc = DestroyFile(FILENAME)))
+        return (rc);
+
+    printf("\ntest2 done ********************\n");
+    return (0);
+}
+
+//
+// Test3 tests scanning the records added to a file.
+//
+RC Test3(void)
+{
+    RC            rc;
+    RM_FileHandle fh;
+
+    printf("test3 starting ****************\n");
+
+    if ((rc = CreateFile(FILENAME, sizeof(TestRec))) ||
+        (rc = OpenFile(FILENAME, fh)) ||
+        (rc = AddRecs(fh, FEW_RECS)))
+        return (rc);
+
+    RM_FileScan fs;
+    void* value = new int(5);
+    if ((rc = fs.OpenScan(fh, INT, sizeof(int), offsetof(TestRec, num), NE_OP, value)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    value = new float(10);
+    if ((rc = fs.OpenScan(fh, FLOAT, sizeof(float), offsetof(TestRec, r), LE_OP, value)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    value = new char[STRLEN];
+    memset(value, ' ', STRLEN);
+    ((char*)value)[0] = 'a';
+    ((char*)value)[1] = '1';
+    ((char*)value)[2] = '3';
+    ((char*)value)[3] = 0;
+    puts((char*)value);
+    if ((rc = fs.OpenScan(fh, STRING, STRLEN, offsetof(TestRec, str), GE_OP, value)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    if ((rc = CloseFile(FILENAME, fh)))
         return (rc);
 
     LsFile(FILENAME);
@@ -493,6 +563,151 @@ RC Test2(void)
     if ((rc = DestroyFile(FILENAME)))
         return (rc);
 
-    printf("\ntest2 done ********************\n");
+    printf("\ntest3 done ********************\n");
+    return (0);
+}
+
+//
+// Test4 tests updating and deleting the records added to a file.
+//
+RC Test4(void)
+{
+    RC            rc;
+    RM_FileHandle fh;
+
+    printf("test4 starting ****************\n");
+
+    if ((rc = CreateFile(FILENAME, sizeof(TestRec))) ||
+        (rc = OpenFile(FILENAME, fh)) ||
+        (rc = AddRecs(fh, FEW_RECS)))
+        return (rc);
+
+    RM_FileScan fs;
+    if ((rc = fs.OpenScan(fh, INT, sizeof(int), offsetof(TestRec, num), NO_OP, NULL)))
+        return (rc);
+    RM_Record rec;
+    RID rid;
+    while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
+        if (rc) return (rc);
+        char* pData;
+        rec.GetData(pData);
+        TestRec* pRecData = (TestRec*)pData;
+        pRecData->num = pRecData->num - 2;
+        pRecData->r = pRecData->r * 2;
+        pRecData->str[0] = 'c';
+        if ((rc = fh.UpdateRec(rec))) return (rc);
+        if ((rc = rec.GetRid(rid))) return (rc);
+    }
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    if ((rc = fs.OpenScan(fh, STRING, STRLEN, offsetof(TestRec, str), NO_OP, NULL)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    if ((rc = fh.GetRec(rid, rec))) return (rc);
+    printf("\nto delete:");
+    char* pData;
+    rec.GetData(pData);
+    TestRec recData = *(TestRec*)pData;
+    PrintRecord(recData);
+    if ((rc = fh.DeleteRec(rid))) return (rc);
+
+    if ((rc = fs.OpenScan(fh, STRING, STRLEN, offsetof(TestRec, str), NO_OP, NULL)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    if ((rc = CloseFile(FILENAME, fh)))
+        return (rc);
+
+    LsFile(FILENAME);
+
+    if ((rc = DestroyFile(FILENAME)))
+        return (rc);
+
+    printf("\ntest4 done ********************\n");
+    return (0);
+}
+
+//
+// Test5 tests deleting the records added to a file, and then inserting some records at available slots.
+//
+RC Test5(void)
+{
+    RC            rc;
+    RM_FileHandle fh;
+
+    printf("test5 starting ****************\n");
+
+    if ((rc = CreateFile(FILENAME, sizeof(TestRec))) ||
+        (rc = OpenFile(FILENAME, fh)) ||
+        (rc = AddRecs(fh, FEW_RECS)))
+        return (rc);
+
+    RM_FileScan fs;
+    if ((rc = fs.OpenScan(fh, INT, sizeof(int), offsetof(TestRec, num), NO_OP, NULL)))
+        return (rc);
+    RM_Record rec;
+    vector<RID> ridList;
+    while ((rc = fs.GetNextRec(rec)) != RM_EOF) {
+        if (rc) return (rc);
+        char* pData;
+        rec.GetData(pData);
+        TestRec* pRecData = (TestRec*)pData;
+        if (pRecData->num % 2) {
+            RID rid;
+            if ((rc = rec.GetRid(rid))) return (rc);
+            ridList.push_back(rid);
+        }
+    }
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    for (int i = 0; i < ridList.size(); ++i) {
+        RID rid = ridList[i];
+        if ((rc = fh.GetRec(rid, rec))) return (rc);
+        printf("\nto delete:");
+        char* pData;
+        rec.GetData(pData);
+        TestRec recData = *(TestRec*)pData;
+        PrintRecord(recData);
+        if ((rc = fh.DeleteRec(rid))) return (rc);
+    }
+
+    if ((rc = fs.OpenScan(fh, STRING, STRLEN, offsetof(TestRec, str), NO_OP, NULL)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    for (int i = 0; i < ridList.size() + 2; ++i) {
+        TestRec recData;
+        recData.num = 10000 + i;
+        recData.r = 0;
+        memset(recData.str, ' ', STRLEN);
+        recData.str[0] = 'n';
+        RID rid;
+        fh.InsertRec((char*)&recData, rid);
+    }
+
+    if ((rc = fs.OpenScan(fh, STRING, STRLEN, offsetof(TestRec, str), NO_OP, NULL)))
+        return (rc);
+    PrintFile(fs);
+    if ((rc = fs.CloseScan()))
+        return (rc);
+
+    if ((rc = CloseFile(FILENAME, fh)))
+        return (rc);
+
+    LsFile(FILENAME);
+
+    if ((rc = DestroyFile(FILENAME)))
+        return (rc);
+
+    printf("\ntest5 done ********************\n");
     return (0);
 }
