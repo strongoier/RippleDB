@@ -40,14 +40,19 @@ struct TreeHeader {
     PF_FileHandle* indexFH;
     map<PageNum, char*> *pageMap;
 
+    bool CompareAttr(void* valueA, CompOp compOp, void* valueB);
+
     RC GetPageData(PageNum pNum, NodeHeader *&pData);
     RC AllocatePage(PageNum &pageNum, NodeHeader *&pageData);
     RC UnpinPages();
 
     RC Insert(char *pData, const RID& rid);
+    RC Search(char *pData, CompOp compOp, NodeHeader *&cur, int &index, bool &isLT);
     RC Delete(char *pData, const RID& rid);
 
     RC SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf);
+    RC GetFirstLeafNode(NodeHeader *&leaf);
+    RC GetLastLeafNode(NodeHeader *&leaf);
 };
 
 struct NodeHeader {
@@ -68,8 +73,14 @@ struct NodeHeader {
     bool HaveParentPage();
 
     char *key(int index);
+    char *lastKey();
+    char *endKey();
     RID *rid(int index);
+    RID *lastRid();
+    RID *endRid();
     PageNum *page(int index);
+    PageNum *lastPage();
+    PageNum *endPage();
 
     int UpperBound(char *pData);
     int LowerBound(char *pData);
@@ -87,6 +98,9 @@ struct NodeHeader {
     RC ParentNextKey(char *&key);
 
     RC UpdateKey(char *oldKey, char *newKey);
+    void MoveKey(int begin, char* dest);
+    void MoveValue(int begin, char *dest);
+    RC MarkDirty();
 };
 
 namespace PFHelper {
@@ -98,6 +112,7 @@ namespace PFHelper {
 //
 class IX_IndexHandle {
     friend class IX_Manager;
+    friend class IX_IndexScan;
 public:
     IX_IndexHandle();
     ~IX_IndexHandle();
@@ -139,6 +154,14 @@ public:
 
     // Close index scan
     RC CloseScan();
+
+private:
+    TreeHeader *tree;
+    char *pData;
+    CompOp op;
+    NodeHeader *cur;
+    int index;
+    bool isLT;
 };
 
 //
@@ -181,8 +204,10 @@ void IX_PrintError(RC rc);
 #define IX_UPDATEKEYINLEAFNODE (START_IX_WARN + 3)
 #define IX_INSERTPAGETOLEAFNODE (START_IX_WARN + 4)
 #define IX_GETPARENTKEYINLEAFNODE (START_IX_WARN + 5)
+#define IX_EOF (START_IX_WARN + 6)
+#define IX_REOPENSCAN (START_IX_WARN + 7)
 
-#define IX_ERROR(rc) { if (rc > 0 && rc < 100 || rc < 0 && rc >- -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) IX_PrintError(rc); printf("CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
+#define IX_ERROR(rc) { printf("RC: %d\n", rc); if (rc > 0 && rc < 100 || rc < 0 && rc >- -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) IX_PrintError(rc); printf("CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
 #define IX_PRINTSTACK { printf("FILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 

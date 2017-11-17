@@ -1,7 +1,0 @@
-all: ix_test
-
-ix_test: ../src/ix_manager.cc ../src/ix_indexhandle.cc ../src/ix_indexscan.cc ../src/pf_error.cc ../src/pf_buffermgr.cc ../src/pf_filehandle.cc ../src/pf_pagehandle.cc ../src/pf_hashtable.cc ../src/pf_manager.cc ../src/attr.cc ../src/pf_helper.cc ../src/ix_error.cc ../src/ix_bplustree.cc ../src/rid.cc ix_test.cc
-	g++ -m32 -std=c++11 ../src/ix_manager.cc ../src/ix_indexhandle.cc ../src/ix_indexscan.cc ../src/pf_error.cc ../src/pf_buffermgr.cc ../src/pf_filehandle.cc ../src/pf_pagehandle.cc ../src/pf_hashtable.cc ../src/pf_manager.cc ../src/attr.cc ../src/pf_helper.cc ../src/ix_error.cc ../src/ix_bplustree.cc ../src/rid.cc ix_test.cc -o ix_test
-
-debug: ../src/ix_manager.cc ../src/ix_indexhandle.cc ../src/ix_indexscan.cc ../src/pf_error.cc ../src/pf_buffermgr.cc ../src/pf_filehandle.cc ../src/pf_pagehandle.cc ../src/pf_hashtable.cc ../src/pf_manager.cc ../src/attr.cc ../src/pf_helper.cc ../src/ix_error.cc ../src/ix_bplustree.cc ../src/rid.cc ix_test.cc
-	g++ -m32 -g -std=c++11 ../src/ix_manager.cc ../src/ix_indexhandle.cc ../src/ix_indexscan.cc ../src/pf_error.cc ../src/pf_buffermgr.cc ../src/pf_filehandle.cc ../src/pf_pagehandle.cc ../src/pf_hashtable.cc ../src/pf_manager.cc ../src/attr.cc ../src/pf_helper.cc ../src/ix_error.cc ../src/ix_bplustree.cc ../src/rid.cc ix_test.cc -o debug

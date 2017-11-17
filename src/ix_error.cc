@@ -11,7 +11,9 @@ static char *IX_WarnMsg[] = {
   (char*)"insert rid into internal node",
   (char*)"update key in leaf node",
   (char*)"insert pagenum into leaf node",
-  (char*)"get parent next ot prev key in leaf node"
+  (char*)"get parent next ot prev key in leaf node",
+  (char*)"the search ends",
+  (char*)"the indexscan has already opened"
 };
 
 static char *IX_ErrorMsg[] = {};
