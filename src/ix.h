@@ -58,7 +58,7 @@ struct TreeHeader {
 struct NodeHeader {
     PageNum selfPNum;
     NodeType nodeType;
-    PageNum parentPNum;
+    PageNum parentPNum; // calculate in SearchLeafNode
     PageNum prevPNum;
     PageNum nextPNum;
     int childNum;
@@ -90,6 +90,9 @@ struct NodeHeader {
     RC InsertRID(char *pData, const RID &rid);
     RC InsertPage(char *pData, PageNum newPage);
 
+    RC DeleteRID(char *pData, const RID &rid);
+    RC DeletePage(char *pData);
+
     RC ChildPage(int index, NodeHeader *&child);
     RC PrevPage(NodeHeader *&prev);
     RC NextPage(NodeHeader *&next);
@@ -102,10 +105,6 @@ struct NodeHeader {
     void MoveValue(int begin, char *dest);
     RC MarkDirty();
 };
-
-namespace PFHelper {
-    RC AllocatePage(PF_FileHandle &fh, PF_PageHandle &ph, PageNum &pNum, char *&pData);
-}
 
 //
 // IX_IndexHandle: IX Index File interface
@@ -126,6 +125,7 @@ public:
     // Force index files to disk
     RC ForcePages();
 private:
+    bool isOpen;
     PF_FileHandle indexFH;
     TreeHeader *treeHeader;
     map<PageNum, char*> pageMap;
@@ -193,6 +193,8 @@ private:
     static char* generateIndexFileName(const char *fileName, int indexNo);
 };
 
+RC IX_AllocatePage(PF_FileHandle &fh, PF_PageHandle &ph, PageNum &pNum, char *&pData);
+
 //
 // Print-error function
 //
@@ -206,6 +208,11 @@ void IX_PrintError(RC rc);
 #define IX_GETPARENTKEYINLEAFNODE (START_IX_WARN + 5)
 #define IX_EOF (START_IX_WARN + 6)
 #define IX_REOPENSCAN (START_IX_WARN + 7)
+#define IX_INDEXHANDLECLOSED (START_IX_WARN + 8)
+#define IX_INDEXHANDLEOPEN (START_IX_WARN + 9)
+#define IX_DELETERIDFROMINTERNALNODE (START_IX_WARN + 10)
+#define IX_DELETERIDNOTEXIST (START_IX_WARN + 11)
+#define IX_DELETEPAGEFROMLEAFNODE (START_IX_WARN + 12)
 
 #define IX_ERROR(rc) { printf("RC: %d\n", rc); if (rc > 0 && rc < 100 || rc < 0 && rc >- -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) IX_PrintError(rc); printf("CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 

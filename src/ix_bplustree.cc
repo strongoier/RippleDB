@@ -88,10 +88,98 @@ bool NodeHeader::BinarySearch(char *pData) {
 		return Attr::binary_search(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
 }
 
+RC NodeHeader::DeleteRID(char *pData, const RID &r) {
+	RC rc;
+	if (nodeType != LeafNode)
+		IX_ERROR(IX_DELETERIDFROMINTERNALNODE)
+	int pos = LowerBound(pData);
+	if (pos == childNum || !tree->CompareAttr(pData, EQ_OP, key(pos))) {
+		if (pos == childNum) printf("error!"); else printf("error2!!%d", selfPNum);
+		IX_ERROR(IX_DELETERIDNOTEXIST)
+	}
+	if (rc = MarkDirty())
+		IX_PRINTSTACK
+	MoveKey(pos + 1, key(pos));
+	MoveValue(pos + 1, (char*)rid(pos));
+	if (--childNum == 0 && HaveParentPage()) {
+		printf("Deleted leaf page: %d\n", selfPNum);
+		if (HavePrevPage()) {
+			NodeHeader *prev;
+			if (rc = PrevPage(prev))
+				IX_PRINTSTACK
+			prev->nextPNum = nextPNum;
+			if (rc = prev->MarkDirty())
+				IX_PRINTSTACK
+		} else {
+			tree->dataHeadPNum = nextPNum;
+		}
+		if (HaveNextPage()) {
+			NodeHeader *next;
+			if (rc = NextPage(next))
+				IX_PRINTSTACK
+			next->prevPNum = prevPNum;
+			if (rc = next->MarkDirty())
+				IX_PRINTSTACK
+		} else {
+			tree->dataTailPNum = prevPNum;
+		}
+		NodeHeader *parent;
+		if (rc = ParentPage(parent))
+			IX_PRINTSTACK
+		if (rc = parent->DeletePage(pData))
+			IX_PRINTSTACK
+	}
+	return OK_RC;
+}
+
+RC NodeHeader::DeletePage(char *pData) {
+	RC rc;
+	if (nodeType != InternalNode)
+		IX_ERROR(IX_DELETEPAGEFROMLEAFNODE)
+	if (rc = MarkDirty())
+		IX_PRINTSTACK
+	int pos = UpperBound(pData);
+	printf("Todelete internal page: %d pos = %d\n", selfPNum, pos);
+	if (pos > 0) {
+		MoveKey(pos, key(pos - 1));
+	}
+	MoveValue(pos + 1, (char*)page(pos));
+	if (--childNum == 0) {
+		printf("Deleted internal page: %d\n", selfPNum);
+		if (!HaveParentPage()) {
+			nodeType = LeafNode;
+			tree->dataHeadPNum = tree->dataTailPNum = selfPNum;
+		} else {
+			if (HavePrevPage()) {
+				NodeHeader *prev;
+				if (rc = PrevPage(prev))
+					IX_PRINTSTACK
+				prev->nextPNum = nextPNum;
+				if (rc = prev->MarkDirty())
+					IX_PRINTSTACK
+			}
+			if (HaveNextPage()) {
+				NodeHeader *next;
+				if (rc = NextPage(next))
+					IX_PRINTSTACK
+				next->prevPNum = prevPNum;
+				if (rc = next->MarkDirty())
+					IX_PRINTSTACK
+			}
+			NodeHeader *parent;
+			if (rc = ParentPage(parent))
+				IX_PRINTSTACK
+			if (rc = parent->DeletePage(pData))
+				IX_PRINTSTACK
+		}
+	}
+	return OK_RC;
+}
+
 RC NodeHeader::InsertRID(char *pData, const RID &r) {
-	PageNum num;
-    r.GetPageNum(num);
-    printf("%d\n", num);
+	//PageNum num;
+    //r.GetPageNum(num);
+    //printf("%d\n", num);
 	RC rc;
 	if (nodeType != LeafNode)
 		IX_ERROR(IX_INSERTRIDTOINTERNALNODE)
@@ -99,21 +187,32 @@ RC NodeHeader::InsertRID(char *pData, const RID &r) {
 		IX_PRINTSTACK
 	if (!IsFull()) {
 		int pos = UpperBound(pData);
-		if (pos == 0 && HaveParentPage()) {
-			NodeHeader *parent;
-			if (rc = ParentPage(parent))
-				IX_PRINTSTACK
-			if (rc = parent->UpdateKey(key(0), pData))
-				IX_PRINTSTACK
-		}
+		//if (pos == 0 && HaveParentPage()) {
+		//	NodeHeader *parent;
+		//	if (rc = ParentPage(parent))
+		//		IX_PRINTSTACK
+			//if (rc = parent->UpdateKey(key(0), pData))
+			//	IX_PRINTSTACK
+		//}
 		MoveKey(pos, key(pos + 1));
 		MoveValue(pos, (char*)rid(pos + 1));
 		memcpy(key(pos), pData, tree->attrLength);
 		*rid(pos) = r;
 		++childNum;
+		/*printf("selfPNum: %d ----", selfPNum);
+		for (int i = 0; i < childNum; ++i) {
+			int tKey = *(int*)key(i);
+			RID tRID = *rid(i);
+			int tPageNum;
+			int tSlotNum;
+			tRID.GetPageNum(tPageNum);
+			tRID.GetSlotNum(tSlotNum);
+			printf("%d: tKey = %d tRID = (%d, %d) ", i, tKey, tPageNum, tSlotNum);
+		}
+		printf("\n");*/
 		return OK_RC;
 	} else {
-		if (HavePrevPage()) {
+		/*if (HavePrevPage()) {
 			NodeHeader *prev;
 			if (rc = PrevPage(prev))
 				IX_PRINTSTACK
@@ -156,7 +255,7 @@ RC NodeHeader::InsertRID(char *pData, const RID &r) {
 					return OK_RC;
 				}
 			}
-		}
+		}*/
 		// Split
 		PageNum newPNum;
 		NodeHeader *newPData;
@@ -241,7 +340,7 @@ RC NodeHeader::InsertPage(char *pData, PageNum newPage) {
 		++childNum;
 		return OK_RC;
 	} else {
-		if (HavePrevPage()) {
+		/*if (HavePrevPage()) {
 			NodeHeader *prev;
 			if (rc = PrevPage(prev))
 				IX_PRINTSTACK
@@ -301,7 +400,7 @@ RC NodeHeader::InsertPage(char *pData, PageNum newPage) {
 					}
 				}
 			}
-		}
+		}*/
 		// Split
 		PageNum newPNum;
 		NodeHeader *newPData;
@@ -353,9 +452,9 @@ RC NodeHeader::InsertPage(char *pData, PageNum newPage) {
 		newPData->childNum = childNum - i;
 		childNum = i;
 		// Insert parent.
-		if (rc = parentPData->InsertPage(newPData->key(i - 1), newPNum))
+		if (rc = parentPData->InsertPage(key(i - 1), newPNum))
 			IX_PRINTSTACK
-		if (tree->CompareAttr(pData, LT_OP, newPData->key(i - 1))) {
+		if (tree->CompareAttr(pData, LT_OP, key(i - 1))) {
 			if (rc = InsertPage(pData, newPage))
 				IX_PRINTSTACK
 		} else {
@@ -501,7 +600,7 @@ RC TreeHeader::AllocatePage(PageNum &pageNum, NodeHeader *&pageData) {
 
 	PF_PageHandle newPH;
 	char *tmp = (char*)pageData;
-	if (rc = PFHelper::AllocatePage(*indexFH, newPH, pageNum, tmp))
+	if (rc = IX_AllocatePage(*indexFH, newPH, pageNum, tmp))
 		IX_PRINTSTACK
 	pageMap->insert(make_pair(pageNum, tmp));
 	pageData = (NodeHeader*)tmp;
@@ -641,17 +740,49 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index,
 RC TreeHeader::Delete(char *pData, const RID& rid) {
 	RC rc;
 
+	NodeHeader *root;
+	if (rc = GetPageData(rootPNum, root))
+		IX_PRINTSTACK
+
+	NodeHeader *leaf;
+	if (rc = SearchLeafNode(pData, root, leaf))
+		IX_PRINTSTACK
+	if (rc = leaf->DeleteRID(pData, rid))
+		IX_PRINTSTACK
+
+	if (rc = UnpinPages())
+		IX_PRINTSTACK
 	return OK_RC;
 }
 
 RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
 	RC rc;
-
+	printf(" selfPNum = [");
 	while (cur->nodeType != LeafNode) {
-		int index = cur->LowerBound(pData);
+		int index = cur->UpperBound(pData);
+		/*if (*(int*)pData == 10) {
+			printf("selfPNum: %d ----", cur->selfPNum);
+			for (int i = 0; i < cur->childNum; ++i) {
+				int tKey = *(int*)cur->key(i);
+				RID tRID = *cur->rid(i);
+				int tPageNum;
+				int tSlotNum;
+				tRID.GetPageNum(tPageNum);
+				tRID.GetSlotNum(tSlotNum);
+				printf("%d: tKey = %d tRID = (%d, %d)\n", i, tKey, tPageNum, tSlotNum);
+			}
+			printf("index = %d\n", index);
+		}*/
+		printf("(%d", *(int*)cur->key(index));
+		int lastPNum = cur->selfPNum;
 		if (rc = cur->ChildPage(index, cur))
 			IX_PRINTSTACK
+		cur->parentPNum = lastPNum; // important !!!
+		if (rc = cur->MarkDirty())
+			IX_PRINTSTACK
+		printf(" ,%d) ", cur->selfPNum);
 	}
+	printf("]\n");
 
 	leaf = cur;
 

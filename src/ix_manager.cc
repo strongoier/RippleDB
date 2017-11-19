@@ -27,6 +27,7 @@ RC IX_Manager::CreateIndex(const char *fileName, int indexNo, AttrType attrType,
     if (rc = PFMgr.CloseFile(indexHandle.indexFH))
         IX_ERROR(rc)
 
+    delete[] file;
     return OK_RC;
 }
 
@@ -38,6 +39,7 @@ RC IX_Manager::DestroyIndex(const char *fileName, int indexNo) {
     if (rc = PFMgr.DestroyFile(file))
         IX_ERROR(rc)
 
+    delete[] file;
     return OK_RC;
 }
 
@@ -45,18 +47,24 @@ RC IX_Manager::DestroyIndex(const char *fileName, int indexNo) {
 RC IX_Manager::OpenIndex(const char *fileName, int indexNo, IX_IndexHandle &indexHandle) {
     RC rc;
 
+    if (indexHandle.isOpen)
+        IX_ERROR(IX_INDEXHANDLEOPEN)
+
     char *file = generateIndexFileName(fileName, indexNo);
     if (rc = PFMgr.OpenFile(file, indexHandle.indexFH))
         IX_ERROR(rc)
     if (rc = indexHandle.OpenIndex())
         IX_PRINTSTACK
 
+    delete[] file;
     return OK_RC;
 }
 
 // Close an Index
 RC IX_Manager::CloseIndex(IX_IndexHandle &indexHandle) {
     RC rc;
+    if (!indexHandle.isOpen)
+        IX_ERROR(IX_INDEXHANDLECLOSED)
     if (rc = indexHandle.CloseIndex())
         IX_PRINTSTACK
     if (rc = PFMgr.CloseFile(indexHandle.indexFH))

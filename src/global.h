@@ -7,13 +7,10 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-<<<<<<< HEAD
 #include <cstring>
 #include <utility>
 using std::pair;
 
-=======
->>>>>>> 44fe9cc6f4fbc0ba6aaf064c828bcc0679936f37
 //
 // Globally-useful defines
 //
