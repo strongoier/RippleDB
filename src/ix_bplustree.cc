@@ -94,7 +94,7 @@ RC NodeHeader::DeleteRID(char *pData, const RID &r) {
 		IX_ERROR(IX_DELETERIDFROMINTERNALNODE)
 	int pos = LowerBound(pData);
 	if (pos == childNum || !tree->CompareAttr(pData, EQ_OP, key(pos))) {
-		if (pos == childNum) printf("error!"); else printf("error2!!%d", selfPNum);
+		//if (pos == childNum) printf("error!"); else printf("error2!!%d", selfPNum);
 		IX_ERROR(IX_DELETERIDNOTEXIST)
 	}
 	if (rc = MarkDirty())
@@ -102,7 +102,7 @@ RC NodeHeader::DeleteRID(char *pData, const RID &r) {
 	MoveKey(pos + 1, key(pos));
 	MoveValue(pos + 1, (char*)rid(pos));
 	if (--childNum == 0 && HaveParentPage()) {
-		printf("Deleted leaf page: %d\n", selfPNum);
+		//printf("Deleted leaf page: %d\n", selfPNum);
 		if (HavePrevPage()) {
 			NodeHeader *prev;
 			if (rc = PrevPage(prev))
@@ -139,13 +139,30 @@ RC NodeHeader::DeletePage(char *pData) {
 	if (rc = MarkDirty())
 		IX_PRINTSTACK
 	int pos = UpperBound(pData);
-	printf("Todelete internal page: %d pos = %d\n", selfPNum, pos);
+	/*printf("Todelete internal page: %d pos = %d\n", selfPNum, pos);
+	printf("from");
+	for (int i = 0; i < childNum - 1; ++i) {
+		printf("key: %d", *(int*)key(i));
+	}
+	for (int i = 0; i < childNum; ++i) {
+		printf("page: %d", *(PageNum*)page(i));
+	}*/
 	if (pos > 0) {
 		MoveKey(pos, key(pos - 1));
+	} else if (pos + 1 <= childNum - 1) { // pos == 0 also needs moving!!!!
+		MoveKey(pos + 1, key(pos));
 	}
 	MoveValue(pos + 1, (char*)page(pos));
+	/*printf("\nto");
+	for (int i = 0; i < childNum - 2; ++i) {
+		printf("key: %d", *(int*)key(i));
+	}
+	for (int i = 0; i < childNum - 1; ++i) {
+		printf("page: %d", *(PageNum*)page(i));
+	}
+	printf("\n");*/
 	if (--childNum == 0) {
-		printf("Deleted internal page: %d\n", selfPNum);
+		//printf("Deleted internal page: %d\n", selfPNum);
 		if (!HaveParentPage()) {
 			nodeType = LeafNode;
 			tree->dataHeadPNum = tree->dataTailPNum = selfPNum;
@@ -757,7 +774,7 @@ RC TreeHeader::Delete(char *pData, const RID& rid) {
 
 RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
 	RC rc;
-	printf(" selfPNum = [");
+	//printf(" selfPNum = [");
 	while (cur->nodeType != LeafNode) {
 		int index = cur->UpperBound(pData);
 		/*if (*(int*)pData == 10) {
@@ -773,16 +790,16 @@ RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
 			}
 			printf("index = %d\n", index);
 		}*/
-		printf("(%d", *(int*)cur->key(index));
+		//printf("(%d", *(int*)cur->key(index));
 		int lastPNum = cur->selfPNum;
 		if (rc = cur->ChildPage(index, cur))
 			IX_PRINTSTACK
 		cur->parentPNum = lastPNum; // important !!!
 		if (rc = cur->MarkDirty())
 			IX_PRINTSTACK
-		printf(" ,%d) ", cur->selfPNum);
+		//printf(" ,%d) ", cur->selfPNum);
 	}
-	printf("]\n");
+	//printf("]\n");
 
 	leaf = cur;
 

@@ -19,7 +19,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 	printf("maxChildNum: %d\n", tree->maxChildNum);
 	printf("curPage: %d\n", cur->selfPNum);
 	printf("curKey: %d\n", *(int*)cur->key(index));
-	NodeHeader* parent;
+	/*NodeHeader* parent;
 	cur->ParentPage(parent);
 	while (true) {
 		int t = parent->selfPNum;
@@ -40,8 +40,8 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 			break;
 		}
 		tree->indexFH->UnpinPage(t);
-	}
-	printf("\n\n\n\n\nLeaf:\n");
+	}*/
+	/*printf("\n\n\n\n\nLeaf:\n");
 	while (true) {
 		int t = cur->selfPNum;
 		printf("selfPNum: %d ----", cur->selfPNum);
@@ -73,7 +73,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 		tRID.GetSlotNum(tSlotNum);
 		printf("%d: tKey = %d tRID = (%d, %d)\n", i, tKey, tPageNum, tSlotNum);
 	}
-	printf("\n");
+	printf("\n");*/
     return OK_RC;
 }
 
