@@ -47,12 +47,14 @@ struct TreeHeader {
     RC UnpinPages();
 
     RC Insert(char *pData, const RID& rid);
-    RC Search(char *pData, CompOp compOp, NodeHeader *&cur, int &index, bool &isLT);
+    RC Search(char *pData, CompOp compOp, NodeHeader *&cur, int &index);
     RC Delete(char *pData, const RID& rid);
+    RC GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index);
 
     RC SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf);
     RC GetFirstLeafNode(NodeHeader *&leaf);
     RC GetLastLeafNode(NodeHeader *&leaf);
+    bool IsValidScanResult(char *pData, CompOp compOp, NodeHeader *cur, int index);
 };
 
 struct NodeHeader {
@@ -159,9 +161,9 @@ private:
     TreeHeader *tree;
     char *pData;
     CompOp op;
+    char buffer[PF_PAGE_SIZE];
     NodeHeader *cur;
     int index;
-    bool isLT;
 };
 
 //

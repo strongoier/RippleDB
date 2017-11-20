@@ -511,6 +511,7 @@ RC NodeHeader::NextPage(NodeHeader *&next) {
 	return OK_RC;
 }
 
+// the parent page number must be right !!!
 RC NodeHeader::ParentPage(NodeHeader *&parent) {
 	RC rc;
 
@@ -654,101 +655,110 @@ RC TreeHeader::Insert(char *pData, const RID& rid) {
 	return OK_RC;
 }
 
-RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index, bool &isLT) {
+RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index) {
 	RC rc;
 
 	if (compOp == NO_OP) {
 		if (rc = GetFirstLeafNode(leaf))
 			IX_PRINTSTACK
 		index = 0;
-		if (leaf->IsEmpty())
+		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	} else if (compOp == EQ_OP) {
+	}
+	
+	if (compOp == EQ_OP) {
 		NodeHeader *root;
 		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
 		if (rc = SearchLeafNode(pData, root, leaf))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
-			leaf = nullptr;
-			return OK_RC;
-		}
 		index = leaf->LowerBound(pData);
-		if (CompareAttr(pData, NE_OP, leaf->key(index)))
+		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	} else if (compOp == NE_OP) {
+	}
+	
+	if (compOp == NE_OP) {
 		if (rc = GetFirstLeafNode(leaf))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
-			leaf = nullptr;
-			return OK_RC;
-		}
 		index = 0;
-		if (CompareAttr(leaf->key(index), LT_OP, pData)) {
-			isLT = true;
+		if (IsValidScanResult(pData, compOp, leaf, index))
 			return OK_RC;
-		}
-		if (rc = GetLastLeafNode(leaf))
+
+		NodeHeader *root;
+		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
+		if (rc = SearchLeafNode(pData, root, leaf))
+			IX_PRINTSTACK
+		index = leaf->UpperBound(pData);
+		if (IsValidScanResult(pData, compOp, leaf, index))
+			return OK_RC;
+		
+		if (index != leaf->childNum || !leaf->HaveNextPage()) {
 			leaf = nullptr;
 			return OK_RC;
 		}
-		index = leaf->childNum - 1;
-		if (CompareAttr(pData, LT_OP, leaf->key(index))) {
-			isLT = false;
-			return OK_RC;
-		}
-		leaf = nullptr;
+
+		if (rc = leaf->NextPage(leaf))
+			IX_PRINTSTACK
+		index = 0;
+		if (!IsValidScanResult(pData, compOp, leaf, index))
+			leaf = nullptr;
 		return OK_RC;
-	} else if (compOp == LT_OP) {
+	}
+	
+	if (compOp == LT_OP) {
 		if (rc = GetFirstLeafNode(leaf))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
-			leaf == nullptr;
-			return OK_RC;
-		}
 		index = 0;
-		if (CompareAttr(pData, LE_OP, leaf->key(index)))
+		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	} else if (compOp == LE_OP) {
+	}
+	
+	if (compOp == LE_OP) {
 		if (rc = GetFirstLeafNode(leaf))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
-			leaf = nullptr;
-			return OK_RC;
-		}
 		index = 0;
-		if (CompareAttr(pData, LT_OP, leaf->key(index)))
+		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	} else if (compOp == GT_OP) {
-		if (rc = GetLastLeafNode(leaf))
-			IX_PRINTSTACK;
-		if (leaf->IsEmpty()) {
-			leaf = nullptr;
-			return OK_RC;
-		}
-		index = leaf->childNum - 1;
-		if (CompareAttr(leaf->key(index), LE_OP, pData))
-			leaf = nullptr;
-		return OK_RC;
-	} else if (compOp == GE_OP) {
-		if (rc = GetLastLeafNode(leaf))
+	}
+	
+	if (compOp == GT_OP) {
+		NodeHeader *root;
+		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
-		if (leaf->IsEmpty()) {
+		if (rc = SearchLeafNode(pData, root, leaf))
+			IX_PRINTSTACK
+		index = leaf->UpperBound(pData);
+		if (IsValidScanResult(pData, compOp, leaf, index))
+			return OK_RC;
+		
+		if (index != leaf->childNum || !leaf->HaveNextPage()) {
 			leaf = nullptr;
 			return OK_RC;
 		}
-		index = leaf->childNum - 1;
-		if (CompareAttr(leaf->key(index), LT_OP, pData))
+
+		if (rc = leaf->NextPage(leaf))
+			IX_PRINTSTACK
+		index = 0;
+		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	} else {
-		leaf = nullptr;
+	}
+	
+	if (compOp == GE_OP) {
+		NodeHeader *root;
+		if (rc = GetPageData(rootPNum, root))
+			IX_PRINTSTACK
+		if (rc = SearchLeafNode(pData, root, leaf))
+			IX_PRINTSTACK
+		index = leaf->LowerBound(pData);
+		if (!IsValidScanResult(pData, compOp, leaf, index))
+			leaf = nullptr;
+		return OK_RC;
 	}
 
 	return OK_RC;
@@ -769,6 +779,56 @@ RC TreeHeader::Delete(char *pData, const RID& rid) {
 
 	if (rc = UnpinPages())
 		IX_PRINTSTACK
+	return OK_RC;
+}
+
+RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index) {
+	RC rc;
+
+	bool gt = CompareAttr(cur->key(index), GT_OP, pData);
+
+	++index;
+	if (IsValidScanResult(pData, compOp, cur, index))
+		return OK_RC;
+	if (compOp != NE_OP || gt) {
+		if (index != cur->childNum || !cur->HaveNextPage()) {
+			cur = nullptr;
+			return OK_RC;
+		}
+		if (rc = cur->NextPage(cur))
+			IX_PRINTSTACK
+		index = 0;
+		if (!IsValidScanResult(pData, compOp, cur, index))
+			cur = nullptr;
+		return OK_RC;
+	} else {
+		if (index != cur->childNum || !cur->HaveNextPage()) {
+			NodeHeader *root;
+			if (rc = GetPageData(rootPNum, root))
+				IX_PRINTSTACK
+			if (rc = SearchLeafNode(pData, root, cur))
+				IX_PRINTSTACK
+			index = cur->UpperBound(pData);
+			if (IsValidScanResult(pData, compOp, cur, index))
+				return OK_RC;
+			if (index != cur->childNum || !cur->HaveNextPage()) {
+				cur = nullptr;
+				return OK_RC;
+			}
+			if (rc = cur->NextPage(cur))
+				IX_PRINTSTACK
+			index = 0;
+			if (!IsValidScanResult(pData, compOp, cur, index))
+				cur = nullptr;
+			return OK_RC;
+		}
+		if (rc = cur->NextPage(cur))
+			IX_PRINTSTACK
+		index = 0;
+		if (!IsValidScanResult(pData, compOp, cur, index))
+			cur = nullptr;
+		return OK_RC;
+	}
 	return OK_RC;
 }
 
@@ -822,4 +882,12 @@ RC TreeHeader::GetLastLeafNode(NodeHeader *&leaf) {
 		IX_PRINTSTACK
 
 	return OK_RC;
+}
+
+bool TreeHeader::IsValidScanResult(char *pData, CompOp compOp, NodeHeader *cur, int index) {
+	if (cur == nullptr)
+		return false;
+	if (index < 0 || index >= cur->childNum)
+		return false;
+	return CompareAttr(cur->key(index), compOp, pData);
 }
