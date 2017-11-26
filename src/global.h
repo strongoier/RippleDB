@@ -21,6 +21,7 @@ using std::pair;
 #define MAXATTRS      40                // maximum number of attributes
                                         // in a relation
 
+#define YY_SKIP_YYWRAP 1
 #define yywrap() 1
 void yyerror(const char *);
 
