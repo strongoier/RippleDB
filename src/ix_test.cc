@@ -20,7 +20,7 @@
 #include <cstdlib>
 #include <ctime>
 
-#include "redbase.h"
+#include "global.h"
 #include "pf.h"
 #include "rm.h"
 #include "ix.h"
@@ -75,7 +75,7 @@ RC PrintIndex(IX_IndexHandle &ih);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       3               // number of tests
+#define NUM_TESTS       4               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
    Test1,
@@ -175,7 +175,7 @@ void PrintError(RC rc)
 //
 // Desc: list the filename's directory entry
 //
-void LsFiles(char *fileName)
+void LsFiles(const char *fileName)
 {
    char command[80];
 

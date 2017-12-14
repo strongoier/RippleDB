@@ -11,7 +11,11 @@
 
 #include "global.h"  // Please don't change these lines
 #include "pf.h"
+#include "rm.h"
 #include <map>
+
+#define IX_DEBUG 1
+
 using std::map;
 
 class IX_Manager;
@@ -203,7 +207,7 @@ RC IX_AllocatePage(PF_FileHandle &fh, PF_PageHandle &ph, PageNum &pNum, char *&p
 void IX_PrintError(RC rc);
 
 #define IX_LENGTHNOTVALID (START_IX_WARN + 0)
-#define IX_INSERTRIDINFULLNODE (START_IX_WARN + 1)
+#define IX_INSERTRIDIvueNFULLNODE (START_IX_WARN + 1)
 #define IX_INSERTRIDTOINTERNALNODE (START_IX_WARN + 2)
 #define IX_UPDATEKEYINLEAFNODE (START_IX_WARN + 3)
 #define IX_INSERTPAGETOLEAFNODE (START_IX_WARN + 4)
@@ -216,8 +220,18 @@ void IX_PrintError(RC rc);
 #define IX_DELETERIDNOTEXIST (START_IX_WARN + 11)
 #define IX_DELETEPAGEFROMLEAFNODE (START_IX_WARN + 12)
 
-#define IX_ERROR(rc) { printf("RC: %d\n", rc); if (rc > 0 && rc < 100 || rc < 0 && rc >- -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) IX_PrintError(rc); printf("CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
+#if IX_DEBUG == 0
+
+#define IX_ERROR(rc) { fprintf(stderr, "RC: %d\n", rc); if (rc > 0 && rc < 100 || rc < 0 && rc > -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) RM_PrintError(rc); else if (rc > 200 && rc < 300 || rc < -200 && rc > -300) IX_PrintError(rc); fprintf(stderr, "CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
 #define IX_PRINTSTACK { printf("FILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
+
+#else
+
+#define IX_ERROR(rc) { return rc; }
+
+#define IX_PRINTSTACK { return rc; }
+
+#endif
 
 #endif
