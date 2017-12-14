@@ -1,3 +1,9 @@
+//
+// File:        ix_bplustree.cc
+// Description: B+ Tree related classes implementation
+// Authors:     Shihong Yan, Yi Xu
+//
+
 #include "ix.h"
 using namespace std;
 

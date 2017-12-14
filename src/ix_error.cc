@@ -1,3 +1,9 @@
+//
+// File:        ix_error.cc
+// Description: IX_PrintError function
+// Authors:     Shihong Yan
+//
+
 #include <cerrno>
 #include <cstdio>
 #include <iostream>

@@ -1,3 +1,9 @@
+//
+// File:        ix_indexscan.cc
+// Description: IX_IndexScan class implementation
+// Authors:     Shihong Yan
+//
+
 #include "ix.h"
 using namespace std;
 

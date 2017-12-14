@@ -1,7 +1,7 @@
 //
 // File:        attr.cc
 // Description: Attr class implementation
-// Authors:     Yi Xu
+// Authors:     Yi Xu, Shihong Yan
 //
 
 #include "global.h"
@@ -39,6 +39,20 @@ void Attr::DeleteValue(AttrType attrType, void* value) {
             break;
         case STRING:
             delete[] (char*)value;
+            break;
+    }
+}
+
+void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+    switch (attrType) {
+        case INT:
+            (int*)destination = *(int*)value;
+            break;
+        case FLOAT:
+            (float*)destination = *(float*)value;
+            break;
+        case STRING:
+            strcpy(destination, value);
             break;
     }
 }

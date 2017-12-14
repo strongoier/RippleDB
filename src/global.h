@@ -15,9 +15,9 @@ using std::pair;
 // Globally-useful defines
 //
 #define MAXNAME       24                // maximum length of a relation
-                                        // or attribute name
+                                        // or attribute name   + 1 ????
 #define MAXSTRINGLEN  255               // maximum length of a
-                                        // string-type attribute
+                                        // string-type attribute + 1 ????
 #define MAXATTRS      40                // maximum number of attributes
                                         // in a relation
 

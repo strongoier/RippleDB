@@ -1,3 +1,9 @@
+//
+// File:        ix_manager.cc
+// Description: IX_Manager class implementation
+// Authors:     Shihong Yan
+//
+
 #include "ix.h"
 #include <cstring>
 #include <cstdio>
