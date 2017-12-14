@@ -7,7 +7,7 @@
 #define PARSER_H
 
 #include <iostream>
-#include "redbase.h"
+#include "global.h"
 #include "pf.h"
 
 //

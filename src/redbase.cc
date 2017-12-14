@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
-#include "redbase.h"
+#include "global.h"
 #include "rm.h"
 #include "sm.h"
 
