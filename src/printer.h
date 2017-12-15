@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <cstring>
-#include "redbase.h"      // For definition of MAXNAME
+#include "global.h"      // For definition of MAXNAME
 
 #define MAXPRINTSTRING  ((2*MAXNAME) + 5)
 

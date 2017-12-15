@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <cstdlib>
 #include <unistd.h>
-#include "redbase.h"
+#include "global.h"
 #include "parser_internal.h"
 #include "pf.h"     // for PF_PrintError
 #include "rm.h"     // for RM_PrintError
@@ -594,7 +594,6 @@ void RBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm)
 
    /* Do forever */
    while (!bExit) {
-
       /* Reset parser and scanner for a new query */
       new_query();
 

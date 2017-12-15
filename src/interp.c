@@ -11,7 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "redbase.h"
+#include "global.h"
 #include "parser_internal.h"
 #include "y.tab.h"
 
@@ -125,16 +125,16 @@ RC interp(NODE *n)
 
       case N_SET:                    /* for Set() */
 
-         errval = pSmm->Set(n->u.SET.paramName,
-               n->u.SET.string);
+         errval = OK_RC;//pSmm->Set(n->u.SET.paramName, n->u.SET.string);
          break;
 
       case N_HELP:            /* for Help() */
 
-         if (n->u.HELP.relname)
+         errval = OK_RC;
+         /*if (n->u.HELP.relname)
             errval = pSmm->Help(n->u.HELP.relname);
          else
-            errval = pSmm->Help();
+            errval = pSmm->Help();*/
          break;
 
       case N_PRINT:            /* for Print() */

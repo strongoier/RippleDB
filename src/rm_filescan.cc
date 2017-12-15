@@ -115,8 +115,6 @@ RC RM_FileScan::CloseScan() {
     if (!isEOF && (rc = pfFileHandle.UnpinPage(pageNum))) {
         return rc;
     }
-    // delete the value
-    Attr::DeleteValue(attrType, value);
     // success
     isOpen = false;
     return OK_RC;

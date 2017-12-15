@@ -1,7 +1,7 @@
 //
-// ix.h
-//
-//   Index Manager Component Interface
+// File:        ix.h
+// Description: Index Manager component interface
+// Authors:     Shihong Yan (Modified from the original file in Stanford CS346 RedBase)
 //
 
 #ifndef IX_H

@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <cassert>
 #include <unistd.h>
-#include "redbase.h"
+#include "global.h"
 #include "ql.h"
 #include "sm.h"
 #include "ix.h"

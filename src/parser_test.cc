@@ -9,7 +9,7 @@
 
 #include <cstdio>
 #include <iostream>
-#include "redbase.h"
+#include "global.h"
 #include "parser.h"
 #include "sm.h"
 #include "ql.h"

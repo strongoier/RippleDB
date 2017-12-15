@@ -1,7 +1,7 @@
 //
 // File:        attr.cc
 // Description: Attr class implementation
-// Authors:     Yi Xu
+// Authors:     Yi Xu, Shihong Yan
 //
 
 #include "global.h"
@@ -27,20 +27,6 @@ bool Attr::CheckAttrLengthValid(AttrType attrType, int attrLength) {
             break;
     }
     return true;
-}
-
-void Attr::DeleteValue(AttrType attrType, void* value) {
-    switch (attrType) {
-        case INT:
-            delete (int*)value;
-            break;
-        case FLOAT:
-            delete (float*)value;
-            break;
-        case STRING:
-            delete[] (char*)value;
-            break;
-    }
 }
 
 bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
@@ -114,7 +100,21 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
     }
 }
 
-bool Attr::CompareAttr(AttrType attrType, int attrLength, void *valueA, CompOp compOp, void *valueB) {
+void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+    switch (attrType) {
+        case INT:
+            *(int*)destination = *(int*)value;
+            break;
+        case FLOAT:
+            *(float*)destination = *(float*)value;
+            break;
+        case STRING:
+            strcpy(destination, (const char*)value);
+            break;
+    }
+}
+
+bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
     if (valueB == NULL) {
         return true;
     }

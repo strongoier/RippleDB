@@ -15,9 +15,9 @@ using std::pair;
 // Globally-useful defines
 //
 #define MAXNAME       24                // maximum length of a relation
-                                        // or attribute name
+                                        // or attribute name   + 1 ????
 #define MAXSTRINGLEN  255               // maximum length of a
-                                        // string-type attribute
+                                        // string-type attribute + 1 ????
 #define MAXATTRS      40                // maximum number of attributes
                                         // in a relation
 
@@ -103,6 +103,7 @@ class Attr {
 public:
     static bool CheckAttrLengthValid(AttrType attrType, int attrLength);
     static void DeleteValue(AttrType attrType, void* value);
+    static void SetAttr(char* destination, AttrType attrType, void* value);
     static bool CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
     static bool CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
     static int lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value);

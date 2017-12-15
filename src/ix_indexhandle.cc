@@ -1,3 +1,9 @@
+//
+// File:        ix_indexhandle.cc
+// Description: IX_IndexHandle class implementation
+// Authors:     Shihong Yan
+//
+
 #include "ix.h"
 using namespace std;
 
