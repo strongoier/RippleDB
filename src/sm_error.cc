@@ -15,8 +15,15 @@ using namespace std;
 // Error table
 //
 static char* SM_WarnMsg[] = {
-    (char*)"a db is already open",
-    (char*)"no db is open"
+    (char*)"no db is open",
+    (char*)"db not exist",
+    (char*)"relation not found",
+    (char*)"attribute not found",
+    (char*)"index already exist",
+    (char*)"index not exist",
+    (char*)"file not found",
+    (char*)"relation already exist",
+    (char*)"error while loading"
 };
 
 //

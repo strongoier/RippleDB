@@ -10,7 +10,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "redbase.h"
+#include "global.h"
 #include "parser.h"
 #include "rm.h"
 #include "ix.h"

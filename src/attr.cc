@@ -46,13 +46,13 @@ void Attr::DeleteValue(AttrType attrType, void* value) {
 void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
     switch (attrType) {
         case INT:
-            (int*)destination = *(int*)value;
+            *(int*)destination = *(int*)value;
             break;
         case FLOAT:
-            (float*)destination = *(float*)value;
+            *(float*)destination = *(float*)value;
             break;
         case STRING:
-            strcpy(destination, value);
+            strcpy(destination, (const char*)value);
             break;
     }
 }

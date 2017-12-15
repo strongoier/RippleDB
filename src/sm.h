@@ -8,18 +8,20 @@
 #define SM_H
 
 // Do not change the following includes
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 #include "global.h"
 #include "parser.h"
 #include "rm.h"
 #include "ix.h"
+using std::vector;
 
 //
 // RelCat: Relation Catalog
 //
 struct RelCat {
-    const int SIZE = MAXNAME + sizeof(int) + sizeof(int) + sizeof(int);
+    static const int SIZE = MAXNAME + sizeof(int) + sizeof(int) + sizeof(int);
 
     char relName[MAXNAME]; // relation name
     int tupleLength; // tuple length in bytes
@@ -39,7 +41,7 @@ struct RelCat {
 // AttrCat: Attribute Catalog
 //
 struct AttrCat {
-    const int SIZE = MAXNAME + MAXNAME + sizeof(int) + sizeof(AttrType) + sizeof(int) + sizeof(int);
+    static const int SIZE = MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
 
     char relName[MAXNAME]; // this attribute's relation
     char attrName[MAXNAME]; // attribute name
@@ -79,8 +81,17 @@ public:
     RC DropTable(const char* relName);
     // Drop index for relName.attrName.
     RC DropIndex(const char* relName, const char* attrName);
+    // Load relation relName from file fileName.
+    RC Load(const char* relName, const char* fileName);
+    // Print relation relName contents.
+    RC Print(const char* relName);
 
 private:
+    // Find relation relName in relcat.
+    RC CheckRelExist(const char* relName, RM_Record& relCatRec);
+    // Get all attrs relation relName in attrcat.
+    RC GetAttrs(const char* relName, std::vector<AttrCat>& attrs);
+
     IX_Manager& ixm; // internal IX_Manager
     RM_Manager& rmm; // internal RM_Manager
     RM_FileHandle relcatFileHandle; // fileHandle for relcat
@@ -93,8 +104,14 @@ private:
 //
 void SM_PrintError(RC rc);
 
-#define SM_DBOPEN        (START_SM_WARN + 0)  // a db is already open
-#define SM_DBNOTOPEN     (START_SM_WARN + 1)  // no db is open
-#define SM_DBNOTEXIST    (START_SM_WARN + 2)  // db is not exist
+#define SM_DBNOTOPEN     (START_SM_WARN + 0)  // no db is open
+#define SM_DBNOTEXIST    (START_SM_WARN + 1)  // db not exist
+#define SM_RELNOTFOUND   (START_SM_WARN + 2)  // relation not found
+#define SM_ATTRNOTFOUND  (START_SM_WARN + 3)  // attribute not found
+#define SM_INDEXEXIST    (START_SM_WARN + 4)  // index already exist
+#define SM_INDEXNOTEXIST (START_SM_WARN + 5)  // index not exist
+#define SM_FILENOTFOUND  (START_SM_WARN + 6)  // file not found
+#define SM_RELEXIST      (START_SM_WARN + 7)  // relation already exist
+#define SM_LOADERROR     (START_SM_WARN + 8)  // error while loading
 
 #endif

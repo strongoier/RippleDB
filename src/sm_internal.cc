@@ -4,6 +4,8 @@
 // Authors:     Yi Xu
 //
 
+#include "sm.h"
+
 RelCat::RelCat(const char* recordData) {
     strcpy(relName, recordData);
     tupleLength = *(int*)(recordData + MAXNAME);
@@ -32,7 +34,7 @@ AttrCat::AttrCat(const char* recordData) {
     indexNo = *(int*)(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int));
 }
 
-AttrCat::AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo);
+AttrCat::AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo)
     : offset(offset), attrType(attrType), attrLength(attrLength), indexNo(indexNo) {
     strcpy(this->relName, relName);
     strcpy(this->attrName, attrName);

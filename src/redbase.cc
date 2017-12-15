@@ -10,12 +10,13 @@
 #include <unistd.h>
 #include "global.h"
 #include "rm.h"
+#include "ix.h"
 #include "sm.h"
+#include "ql.h"
 
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    char* dbname;
     RC rc;
 
     // Look for 2 arguments. The first is always the name of the program
@@ -32,15 +33,18 @@ int main(int argc, char* argv[]) {
     SM_Manager smm(ixm, rmm);
     QL_Manager qlm(smm, ixm, rmm);
     // open the database
-    if ((rc = smm.OpenDb(dbname))) {
+    if ((rc = smm.OpenDb(argv[1]))) {
+        SM_PrintError(rc);
         return rc;
     }
     // call the parser
     RBparse(pfm, smm, qlm);
     // close the database
     if ((rc = smm.CloseDb())) {
+        SM_PrintError(rc);
         return rc;
     }
 
     cout << "Bye.\n";
+    return OK_RC;
 }

@@ -23,19 +23,19 @@ LEX            = flex
 # -O1 - Basic optimization
 # -Wall - All warnings
 # -DDEBUG_PF - This turns on the LOG file for lots of BufferMgr info
-CFLAGS         = -m32 -g -O1 -Wall $(INC_DIRS)
+CFLAGS         = -m32 -g -O1 -Wall -std=c++11 $(INC_DIRS)
 
 #
 # Students: Please modify SOURCES variables as needed.
 #
 PF_SOURCES     = pf_error.cc pf_buffermgr.cc pf_filehandle.cc pf_pagehandle.cc pf_hashtable.cc pf_manager.cc
 RM_SOURCES     = rm_error.cc rm_manager.cc rm_filehandle.cc rm_filescan.cc rm_record.cc attr.cc rid.cc
-IX_SOURCES     = empty.cc
-SM_SOURCES     = empty.cc #sm_stub.cc printer.cc
-QL_SOURCES     = empty.cc #ql_manager_stub.cc
-UTILS_SOURCES  = #dbcreate.cc dbdestroy.cc redbase.cc
-PARSER_SOURCES = empty.cc #scan.c parse.c nodes.c interp.c
-TESTER_SOURCES = rm_test.cc #ix_test.cc parser_test.cc
+IX_SOURCES     = ix_error.cc ix_bplustree.cc ix_manager.cc ix_indexscan.cc ix_indexhandle.cc ix_internal.cc
+SM_SOURCES     = sm_error.cc sm_manager.cc sm_internal.cc printer.cc
+QL_SOURCES     = ql_manager_stub.cc
+UTILS_SOURCES  = dbcreate.cc dbdestroy.cc redbase.cc
+PARSER_SOURCES = scan.c parse.c nodes.c interp.c
+TESTER_SOURCES = rm_test.cc ix_test.cc parser_test.cc
 
 PF_OBJECTS     = $(addprefix $(BUILD_DIR), $(PF_SOURCES:.cc=.o))
 RM_OBJECTS     = $(addprefix $(BUILD_DIR), $(RM_SOURCES:.cc=.o))
@@ -43,7 +43,7 @@ IX_OBJECTS     = $(addprefix $(BUILD_DIR), $(IX_SOURCES:.cc=.o))
 SM_OBJECTS     = $(addprefix $(BUILD_DIR), $(SM_SOURCES:.cc=.o))
 QL_OBJECTS     = $(addprefix $(BUILD_DIR), $(QL_SOURCES:.cc=.o))
 UTILS_OBJECTS  = $(addprefix $(BUILD_DIR), $(UTILS_SOURCES:.cc=.o))
-PARSER_OBJECTS = $(addprefix $(BUILD_DIR), $(PARSER_SOURCES:.cc=.o))
+PARSER_OBJECTS = $(addprefix $(BUILD_DIR), $(PARSER_SOURCES:.c=.o))
 TESTER_OBJECTS = $(addprefix $(BUILD_DIR), $(TESTER_SOURCES:.cc=.o))
 OBJECTS        = $(PF_OBJECTS) $(RM_OBJECTS) $(IX_OBJECTS) \
                  $(SM_OBJECTS) $(QL_OBJECTS) $(PARSER_OBJECTS) \
@@ -70,7 +70,7 @@ LIBS           = -lparser -lql -lsm -lix -lrm -lpf
 all: $(LIBRARIES) $(UTILS)
 
 clean:
-	rm -f $(BUILD_DIR)*.o $(BUILD_DIR)*.d y.output y.tab.h parse.c $(LIBRARIES) $(EXECUTABLES)
+	rm -f $(BUILD_DIR)*.o $(BUILD_DIR)*.d y.output y.tab.h parse.c scan.c $(LIBRARIES) $(EXECUTABLES)
 
 testers: all $(TESTS)
 

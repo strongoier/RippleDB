@@ -14,7 +14,7 @@
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     char* dbname;
     char command[255] = "mkdir ";
     RC rc;
@@ -75,44 +75,44 @@ int main(int argc, char *argv[]) {
     }
     // Add relcat attr records in attrcat
     recordData = new char[AttrCat::SIZE];
-    AttrCatRecord("relcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("relcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("relcat", "tupleLength", MAXNAME, INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "tupleLength", MAXNAME, INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("relcat", "attrCount", MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "attrCount", MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("relcat", "indexCount", MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "indexCount", MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
     // Add attrcat attr records in attrcat
-    AttrCatRecord("attrcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("attrcat", "attrName", MAXNAME, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrName", MAXNAME, STRING, MAXNAME, -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("attrcat", "offset", MAXNAME + MAXNAME, INT, 4, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "offset", MAXNAME + MAXNAME, INT, 4, -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("attrcat", "attrType", MAXNAME + MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrType", MAXNAME + MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("attrcat", "attrLength", MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrLength", MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCatRecord("attrcat", "indexNo", MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "indexNo", MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }

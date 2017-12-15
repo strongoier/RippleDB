@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include "redbase.h"
+#include "global.h"
 #include "parser_internal.h"
 #include "y.tab.h"
 
