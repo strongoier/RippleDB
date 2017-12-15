@@ -104,10 +104,15 @@ public:
     static bool CheckAttrLengthValid(AttrType attrType, int attrLength);
     static void DeleteValue(AttrType attrType, void* value);
     static bool CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
+    static bool CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
     static int lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static int lower_boundWithRID(AttrType attrType, int attrLength, char* first, int len, char* value);
     static int upper_bound(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static int upper_boundWithRID(AttrType attrType, int attrLength, char* first, int len, char* value);
     static pair<int, int> equal_range(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static pair<int, int> equal_rangeWithRID(AttrType attrType, int attrLength, char* first, int len, char* value);
     static bool binary_search(AttrType attrType, int attrLength, char* first, int len, char* value);
+    static bool binary_searchWithRID(AttrType attrType, int attrLength, char* first, int len, char* value);
 };
 
 /********** RID **********/
@@ -126,6 +131,12 @@ typedef int SlotNum;
 // RID: Record ID
 //
 class RID {
+    friend bool operator<(const RID& a, const RID& b);
+    friend bool operator<=(const RID& a, const RID& b);
+    friend bool operator==(const RID& a, const RID& b);
+    friend bool operator!=(const RID& a, const RID& b);
+    friend bool operator>(const RID& a, const RID& b);
+    friend bool operator>=(const RID& a, const RID& b);
 public:
     static const PageNum NULL_PAGE_NUM = -1; // default value when not set
     static const SlotNum NULL_SLOT_NUM = -1; // default value when not set
@@ -141,5 +152,4 @@ private:
     PageNum pageNum; // unique page number in a file
     SlotNum slotNum; // unique slot number in a page
 };
-
 #endif

@@ -29,3 +29,27 @@ RC RID::GetSlotNum(SlotNum &slotNum) const {
     slotNum = this->slotNum;
     return OK_RC;
 }
+
+bool operator<(const RID& a, const RID& b) {
+    return a.pageNum < b.pageNum || (a.pageNum == b.pageNum && a.slotNum < b.slotNum);
+}
+
+bool operator<=(const RID& a, const RID& b) {
+    return !(a > b);
+}
+
+bool operator==(const RID& a, const RID& b) {
+    return a.pageNum == b.pageNum && a.slotNum == b.slotNum;
+}
+
+bool operator!=(const RID& a, const RID& b) {
+    return !(a == b);
+}
+
+bool operator>(const RID& a, const RID& b) {
+    return a.pageNum > b.pageNum || (a.pageNum == b.pageNum && a.slotNum > b.slotNum);
+}
+
+bool operator>=(const RID& a, const RID& b) {
+    return !(a < b);
+}

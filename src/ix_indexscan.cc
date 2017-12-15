@@ -1,7 +1,7 @@
 #include "ix.h"
 using namespace std;
 
-IX_IndexScan::IX_IndexScan() : tree(nullptr), pData(nullptr), cur(nullptr) {}
+IX_IndexScan::IX_IndexScan() : tree(nullptr), cur(nullptr) {}
 
 IX_IndexScan::~IX_IndexScan() {}
 
@@ -14,7 +14,6 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 
 	tree = indexHandle.treeHeader;
 	if (compOp != NO_OP) {
-		pData = new char[tree->attrLength];
 		memcpy(pData, value, tree->attrLength);
 	}
 	op = compOp;
@@ -101,10 +100,12 @@ RC IX_IndexScan::GetNextEntry(RID &r) {
 	// printf("cur: %p\n", cur);
 	// printf("key: %d\n", *(int*)cur->key(index));
 
-	if (rc = tree->GetNextEntry(pData, op, cur, index))
+	bool newPage = false;
+
+	if (rc = tree->GetNextEntry(pData, op, cur, index, newPage))
 		IX_PRINTSTACK
 	
-	if (cur != nullptr) {
+	if (cur != nullptr && newPage) {
 		memcpy(buffer, cur, PF_PAGE_SIZE);
 		cur = (NodeHeader*)buffer;
 	}
@@ -117,11 +118,9 @@ RC IX_IndexScan::GetNextEntry(RID &r) {
 
 // Close index scan
 RC IX_IndexScan::CloseScan() {
-	if (pData != nullptr)
-		delete pData;
-	pData = nullptr;
 	cur = nullptr;
-	tree->UnpinPages();
+	if (tree)
+		tree->UnpinPages();
 	tree = nullptr;
   return OK_RC;
 }

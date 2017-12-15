@@ -89,7 +89,7 @@ RC GetNextRecScan(RM_FileScan &fs, RM_Record &rec);
 //
 // Array of pointers to the test functions
 //
-#define NUM_TESTS       5               // number of tests
+#define NUM_TESTS      5               // number of tests
 int (*tests[])() =                      // RC doesn't work on some compilers
 {
     Test1,

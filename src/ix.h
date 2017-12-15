@@ -14,7 +14,7 @@
 #include "rm.h"
 #include <map>
 
-#define IX_DEBUG 1
+#define IX_DEBUG 0
 
 using std::map;
 
@@ -25,10 +25,8 @@ struct TreeHeader;
 struct NodeHeader;
 
 enum NodeType {
-    EmptyNode,
     LeafNode,
-    InternalNode,
-    OverflowNode
+    InternalNode
 };
 
 struct TreeHeader {
@@ -36,29 +34,35 @@ struct TreeHeader {
     PageNum rootPNum;
     AttrType attrType;
     int attrLength;
+    int attrLengthWithRid;
     int childItemSize;
     int maxChildNum;
-    bool duplicateValuesAllowed;
     PageNum dataHeadPNum;
     PageNum dataTailPNum;
     PF_FileHandle* indexFH;
     map<PageNum, char*> *pageMap;
 
     bool CompareAttr(void* valueA, CompOp compOp, void* valueB);
+    bool CompareAttrWithRID(void *valueA, CompOp compOp, void *valueB);
 
     RC GetPageData(PageNum pNum, NodeHeader *&pData);
     RC AllocatePage(PageNum &pageNum, NodeHeader *&pageData);
     RC UnpinPages();
 
-    RC Insert(char *pData, const RID& rid);
+    RC Insert(char *pData);
     RC Search(char *pData, CompOp compOp, NodeHeader *&cur, int &index);
-    RC Delete(char *pData, const RID& rid);
-    RC GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index);
+    RC Delete(char *pData);
+    RC GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index, bool &newPage);
 
+    RC SearchLeafNodeWithRID(char *pData, NodeHeader *cur, NodeHeader *&leaf);
     RC SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf);
     RC GetFirstLeafNode(NodeHeader *&leaf);
     RC GetLastLeafNode(NodeHeader *&leaf);
     bool IsValidScanResult(char *pData, CompOp compOp, NodeHeader *cur, int index);
+    void appendMaxRID(char *pData);
+    void appendMinRID(char *pData);
+
+    RC DisplayAllTree();
 };
 
 struct NodeHeader {
@@ -68,9 +72,9 @@ struct NodeHeader {
     PageNum prevPNum;
     PageNum nextPNum;
     int childNum;
-    char* keys;
-    char* values;
-    TreeHeader *tree;
+    char* keys;         // calculate in GetPageData
+    char* values;       // calculate in GetPageData
+    TreeHeader *tree;   // calculate in GetPageData
 
     bool IsEmpty();
     bool IsFull();
@@ -89,14 +93,18 @@ struct NodeHeader {
     PageNum *endPage();
 
     int UpperBound(char *pData);
+    int UpperBoundWithRID(char *pData);
     int LowerBound(char *pData);
+    int LowerBoundWithRID(char *pData);
     pair<int, int> EqualRange(char *pData);
+    pair<int, int> EqualRangeWithRID(char *pData);
     bool BinarySearch(char *pData);
+    bool BinarySearchWithRID(char *pData);
 
-    RC InsertRID(char *pData, const RID &rid);
+    RC InsertRID(char *pData);
     RC InsertPage(char *pData, PageNum newPage);
 
-    RC DeleteRID(char *pData, const RID &rid);
+    RC DeleteRID(char *pData);
     RC DeletePage(char *pData);
 
     RC ChildPage(int index, NodeHeader *&child);
@@ -130,6 +138,8 @@ public:
 
     // Force index files to disk
     RC ForcePages();
+
+    RC DisplayAllTree();
 private:
     bool isOpen;
     PF_FileHandle indexFH;
@@ -163,7 +173,7 @@ public:
 
 private:
     TreeHeader *tree;
-    char *pData;
+    char pData[300];
     CompOp op;
     char buffer[PF_PAGE_SIZE];
     NodeHeader *cur;
@@ -207,7 +217,7 @@ RC IX_AllocatePage(PF_FileHandle &fh, PF_PageHandle &ph, PageNum &pNum, char *&p
 void IX_PrintError(RC rc);
 
 #define IX_LENGTHNOTVALID (START_IX_WARN + 0)
-#define IX_INSERTRIDIvueNFULLNODE (START_IX_WARN + 1)
+#define IX_INSERTRIDINFULLNODE (START_IX_WARN + 1)
 #define IX_INSERTRIDTOINTERNALNODE (START_IX_WARN + 2)
 #define IX_UPDATEKEYINLEAFNODE (START_IX_WARN + 3)
 #define IX_INSERTPAGETOLEAFNODE (START_IX_WARN + 4)
@@ -220,11 +230,11 @@ void IX_PrintError(RC rc);
 #define IX_DELETERIDNOTEXIST (START_IX_WARN + 11)
 #define IX_DELETEPAGEFROMLEAFNODE (START_IX_WARN + 12)
 
-#if IX_DEBUG == 0
+#if IX_DEBUG == 1
 
 #define IX_ERROR(rc) { fprintf(stderr, "RC: %d\n", rc); if (rc > 0 && rc < 100 || rc < 0 && rc > -100) PF_PrintError(rc); else if (rc > 100 && rc < 200 || rc < -100 && rc > -200) RM_PrintError(rc); else if (rc > 200 && rc < 300 || rc < -200 && rc > -300) IX_PrintError(rc); fprintf(stderr, "CALLSTACK:\nFILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
-#define IX_PRINTSTACK { printf("FILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
+#define IX_PRINTSTACK { fprintf(stderr, "FILE: %s, FUNC: %s, LINE: %d\n", __FILE__, __func__, __LINE__); return rc; }
 
 #else
 

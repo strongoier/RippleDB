@@ -1,5 +1,18 @@
 #include "ix.h"
+#include <limits>
 using namespace std;
+
+/**
+ * PageNum selfPNum
+ * NodeType nodeType
+ * PageNum parentPNum
+ * PageNum prevPNum
+ * PageNum nextPNum
+ * int childNum
+ * char* keys
+ * char* values
+ * TreeHeader* tree
+ */
 
 bool NodeHeader::IsEmpty() {
 	return childNum == 0;
@@ -22,30 +35,30 @@ bool NodeHeader::HaveParentPage() {
 }
 
 char* NodeHeader::key(int index) {
-	return keys + index * tree->attrLength;
+	return keys + index * tree->attrLengthWithRid;
 }
 
 char *NodeHeader::lastKey() {
-	return endKey() - tree->attrLength;
+	return endKey() - tree->attrLengthWithRid;
 }
 
 char* NodeHeader::endKey() {
 	if (nodeType == InternalNode)
-		return keys + (childNum - 1) * tree->attrLength;
+		return keys + (childNum - 1) * tree->attrLengthWithRid;
 	else
-		return keys + childNum * tree->attrLength;
+		return keys + childNum * tree->attrLengthWithRid;
 }
 
 RID* NodeHeader::rid(int index) {
-	return (RID*)(values + index * tree->childItemSize);
+	return (RID*)(key(index) + tree->attrLength);
 }
 
 RID* NodeHeader::lastRid() {
-	return (RID*)((char*)endRid() - tree->childItemSize);
+	return (RID*)(lastKey() + tree->attrLength);
 }
 
 RID* NodeHeader::endRid() {
-	return (RID*)(values + childNum * tree->childItemSize);
+	return (RID*)(endKey() + tree->attrLength);
 }
 
 PageNum* NodeHeader::page(int index) {
@@ -67,11 +80,25 @@ int NodeHeader::UpperBound(char *pData) {
 		return Attr::upper_bound(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
 }
 
+int NodeHeader::UpperBoundWithRID(char *pData) {
+	if (nodeType == LeafNode)
+		return Attr::upper_boundWithRID(tree->attrType, tree->attrLength, keys, childNum, pData);
+	else
+		return Attr::upper_boundWithRID(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
+}
+
 int NodeHeader::LowerBound(char* pData) {
 	if (nodeType == LeafNode)
 		return Attr::lower_bound(tree->attrType, tree->attrLength, keys, childNum, pData);
 	else
 		return Attr::lower_bound(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
+}
+
+int NodeHeader::LowerBoundWithRID(char *pData) {
+	if (nodeType == LeafNode)
+		return Attr::lower_boundWithRID(tree->attrType, tree->attrLength, keys, childNum, pData);
+	else
+		return Attr::lower_boundWithRID(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
 }
 
 pair<int, int> NodeHeader::EqualRange(char *pData) {
@@ -81,6 +108,13 @@ pair<int, int> NodeHeader::EqualRange(char *pData) {
 		return Attr::equal_range(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
 }
 
+pair<int, int> NodeHeader::EqualRangeWithRID(char *pData) {
+	if (nodeType == LeafNode)
+		return Attr::equal_rangeWithRID(tree->attrType, tree->attrLength, keys, childNum, pData);
+	else
+		return Attr::equal_rangeWithRID(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
+}
+
 bool NodeHeader::BinarySearch(char *pData) {
 	if (nodeType == LeafNode)
 		return Attr::binary_search(tree->attrType, tree->attrLength, keys, childNum, pData);
@@ -88,11 +122,18 @@ bool NodeHeader::BinarySearch(char *pData) {
 		return Attr::binary_search(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
 }
 
-RC NodeHeader::DeleteRID(char *pData, const RID &r) {
+bool NodeHeader::BinarySearchWithRID(char *pData) {
+	if (nodeType == LeafNode)
+		return Attr::binary_searchWithRID(tree->attrType, tree->attrLength, keys, childNum, pData);
+	else
+		return Attr::binary_searchWithRID(tree->attrType, tree->attrLength, keys, childNum - 1, pData);
+}
+
+RC NodeHeader::DeleteRID(char *pData) {
 	RC rc;
 	if (nodeType != LeafNode)
 		IX_ERROR(IX_DELETERIDFROMINTERNALNODE)
-	int pos = LowerBound(pData);
+	int pos = LowerBoundWithRID(pData);
 	if (pos == childNum || !tree->CompareAttr(pData, EQ_OP, key(pos))) {
 		//if (pos == childNum) printf("error!"); else printf("error2!!%d", selfPNum);
 		IX_ERROR(IX_DELETERIDNOTEXIST)
@@ -100,7 +141,7 @@ RC NodeHeader::DeleteRID(char *pData, const RID &r) {
 	if (rc = MarkDirty())
 		IX_PRINTSTACK
 	MoveKey(pos + 1, key(pos));
-	MoveValue(pos + 1, (char*)rid(pos));
+	MoveValue(pos + 1, (char*)page(pos));
 	if (--childNum == 0 && HaveParentPage()) {
 		//printf("Deleted leaf page: %d\n", selfPNum);
 		if (HavePrevPage()) {
@@ -138,7 +179,7 @@ RC NodeHeader::DeletePage(char *pData) {
 		IX_ERROR(IX_DELETEPAGEFROMLEAFNODE)
 	if (rc = MarkDirty())
 		IX_PRINTSTACK
-	int pos = UpperBound(pData);
+	int pos = UpperBoundWithRID(pData);
 	/*printf("Todelete internal page: %d pos = %d\n", selfPNum, pos);
 	printf("from");
 	for (int i = 0; i < childNum - 1; ++i) {
@@ -193,7 +234,7 @@ RC NodeHeader::DeletePage(char *pData) {
 	return OK_RC;
 }
 
-RC NodeHeader::InsertRID(char *pData, const RID &r) {
+RC NodeHeader::InsertRID(char *pData) {
 	//PageNum num;
     //r.GetPageNum(num);
     //printf("%d\n", num);
@@ -203,7 +244,7 @@ RC NodeHeader::InsertRID(char *pData, const RID &r) {
 	if (rc = MarkDirty())
 		IX_PRINTSTACK
 	if (!IsFull()) {
-		int pos = UpperBound(pData);
+		int pos = UpperBoundWithRID(pData);
 		//if (pos == 0 && HaveParentPage()) {
 		//	NodeHeader *parent;
 		//	if (rc = ParentPage(parent))
@@ -212,9 +253,8 @@ RC NodeHeader::InsertRID(char *pData, const RID &r) {
 			//	IX_PRINTSTACK
 		//}
 		MoveKey(pos, key(pos + 1));
-		MoveValue(pos, (char*)rid(pos + 1));
-		memcpy(key(pos), pData, tree->attrLength);
-		*rid(pos) = r;
+		MoveValue(pos, (char*)page(pos + 1));
+		memcpy(key(pos), pData, tree->attrLengthWithRid);
 		++childNum;
 		/*printf("selfPNum: %d ----", selfPNum);
 		for (int i = 0; i < childNum; ++i) {
@@ -322,17 +362,17 @@ RC NodeHeader::InsertRID(char *pData, const RID &r) {
 		// move the data
 		int i = tree->maxChildNum / 2;
 		MoveKey(i, newPData->key(0));
-		MoveValue(i, (char*)newPData->rid(0));
+		MoveValue(i, (char*)newPData->page(0));
 		newPData->childNum = childNum - i;
 		childNum = i;
 		// Insert parent.
 		if (rc = parentPData->InsertPage(newPData->key(0), newPNum))
 			IX_PRINTSTACK
-		if (tree->CompareAttr(pData, LT_OP, newPData->key(0))) {
-			if (rc = InsertRID(pData, r))
+		if (tree->CompareAttrWithRID(pData, LT_OP, newPData->key(0))) {
+			if (rc = InsertRID(pData))
 				IX_PRINTSTACK
 		} else {
-			if (newPData->InsertRID(pData, r))
+			if (newPData->InsertRID(pData))
 				IX_PRINTSTACK
 		}
 		return OK_RC;
@@ -349,10 +389,10 @@ RC NodeHeader::InsertPage(char *pData, PageNum newPage) {
 	if (rc = MarkDirty())
 		IX_PRINTSTACK
 	if (!IsFull()) {
-		int pos = UpperBound(pData);
+		int pos = UpperBoundWithRID(pData);
 		MoveKey(pos, key(pos + 1));
 		MoveValue(pos + 1, (char*)page(pos + 2));
-		memcpy(key(pos), pData, tree->attrLength);
+		memcpy(key(pos), pData, tree->attrLengthWithRid);
 		*page(pos + 1) = newPage;
 		++childNum;
 		return OK_RC;
@@ -471,7 +511,7 @@ RC NodeHeader::InsertPage(char *pData, PageNum newPage) {
 		// Insert parent.
 		if (rc = parentPData->InsertPage(key(i - 1), newPNum))
 			IX_PRINTSTACK
-		if (tree->CompareAttr(pData, LT_OP, key(i - 1))) {
+		if (tree->CompareAttrWithRID(pData, LT_OP, key(i - 1))) {
 			if (rc = InsertPage(pData, newPage))
 				IX_PRINTSTACK
 		} else {
@@ -530,7 +570,7 @@ RC NodeHeader::ParentPrevKey(char *&k) {
 	NodeHeader *parent;
 	if (rc = ParentPage(parent))
 		IX_PRINTSTACK
-	int index = parent->UpperBound(key(0));
+	int index = parent->UpperBoundWithRID(key(0));
 	if (index == 0)
 		k = nullptr;
 	else
@@ -548,7 +588,7 @@ RC NodeHeader::ParentNextKey(char *&k) {
 	NodeHeader *parent;
 	if (rc = ParentPage(parent))
 		IX_PRINTSTACK
-	int index = parent->UpperBound(key(0));
+	int index = parent->UpperBoundWithRID(key(0));
 	if (index == parent->childNum - 1)
 		k = nullptr;
 	else
@@ -563,8 +603,8 @@ RC NodeHeader::UpdateKey(char *oldKey, char *newKey) {
 	if (nodeType != InternalNode)
 		IX_ERROR(IX_UPDATEKEYINLEAFNODE)
 
-	int pos = LowerBound(oldKey);
-	memcpy(key(pos), newKey, tree->attrLength);
+	int pos = LowerBoundWithRID(oldKey);
+	memcpy(key(pos), newKey, tree->attrLengthWithRid);
 
 	return OK_RC;
 }
@@ -576,8 +616,8 @@ void NodeHeader::MoveKey(int begin, char* dest) {
 }
 
 void NodeHeader::MoveValue(int begin, char *dest) {
-	char *src = (char*)rid(begin);
-	int count = (char*)endRid() - src;
+	char *src = (char*)page(begin);
+	int count = (char*)endPage() - src;
 	memmove(dest, src, count);
 }
 
@@ -590,6 +630,10 @@ RC NodeHeader::MarkDirty() {
 
 bool TreeHeader::CompareAttr(void* valueA, CompOp compOp, void* valueB) {
 	return Attr::CompareAttr(attrType, attrLength, valueA, compOp, valueB);
+}
+
+bool TreeHeader::CompareAttrWithRID(void *valueA, CompOp compOp, void *valueB) {
+	return Attr::CompareAttrWithRID(attrType, attrLength, valueA, compOp, valueB);
 }
 
 RC TreeHeader::GetPageData(PageNum pNum, NodeHeader *&pData) {
@@ -609,7 +653,7 @@ RC TreeHeader::GetPageData(PageNum pNum, NodeHeader *&pData) {
     }
     pData->tree = this;
     pData->keys = ((char*)pData + sizeof(NodeHeader));
-    pData->values = (pData->keys + attrLength * maxChildNum);
+    pData->values = (pData->keys + attrLengthWithRid * maxChildNum);
     return OK_RC;
 }
 
@@ -624,7 +668,7 @@ RC TreeHeader::AllocatePage(PageNum &pageNum, NodeHeader *&pageData) {
 	pageData = (NodeHeader*)tmp;
 	pageData->tree = this;
 	pageData->keys = (tmp + sizeof(NodeHeader));
-    pageData->values = (pageData->keys + attrLength * maxChildNum);
+    pageData->values = (pageData->keys + attrLengthWithRid * maxChildNum);
 	return OK_RC;
 }
 
@@ -637,7 +681,7 @@ RC TreeHeader::UnpinPages() {
     return OK_RC;
 }
 
-RC TreeHeader::Insert(char *pData, const RID& rid) {
+RC TreeHeader::Insert(char *pData) {
 	RC rc;
 
 	NodeHeader *root;
@@ -645,9 +689,9 @@ RC TreeHeader::Insert(char *pData, const RID& rid) {
 		IX_PRINTSTACK
 
 	NodeHeader *leaf;
-	if (rc = SearchLeafNode(pData, root, leaf))
+	if (rc = SearchLeafNodeWithRID(pData, root, leaf))
 		IX_PRINTSTACK
-	if (rc = leaf->InsertRID(pData, rid))
+	if (rc = leaf->InsertRID(pData))
 		IX_PRINTSTACK
 
 	if (rc = UnpinPages())
@@ -671,9 +715,11 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		NodeHeader *root;
 		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
+		appendMinRID(pData);
 		if (rc = SearchLeafNode(pData, root, leaf))
 			IX_PRINTSTACK
-		index = leaf->LowerBound(pData);
+        appendMinRID(pData);
+		index = leaf->LowerBoundWithRID(pData);
 		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
@@ -689,9 +735,11 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		NodeHeader *root;
 		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
+		appendMinRID(pData);
 		if (rc = SearchLeafNode(pData, root, leaf))
 			IX_PRINTSTACK
-		index = leaf->UpperBound(pData);
+		appendMaxRID(pData);
+		index = leaf->UpperBoundWithRID(pData);
 		if (IsValidScanResult(pData, compOp, leaf, index))
 			return OK_RC;
 		
@@ -730,9 +778,11 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		NodeHeader *root;
 		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
+		appendMinRID(pData);
 		if (rc = SearchLeafNode(pData, root, leaf))
 			IX_PRINTSTACK
-		index = leaf->UpperBound(pData);
+		appendMaxRID(pData);
+		index = leaf->UpperBoundWithRID(pData);
 		if (IsValidScanResult(pData, compOp, leaf, index))
 			return OK_RC;
 		
@@ -753,9 +803,11 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		NodeHeader *root;
 		if (rc = GetPageData(rootPNum, root))
 			IX_PRINTSTACK
+		appendMinRID(pData);
 		if (rc = SearchLeafNode(pData, root, leaf))
 			IX_PRINTSTACK
-		index = leaf->LowerBound(pData);
+		appendMinRID(pData);
+		index = leaf->LowerBoundWithRID(pData);
 		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
@@ -764,7 +816,7 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 	return OK_RC;
 }
 
-RC TreeHeader::Delete(char *pData, const RID& rid) {
+RC TreeHeader::Delete(char *pData) {
 	RC rc;
 
 	NodeHeader *root;
@@ -772,9 +824,9 @@ RC TreeHeader::Delete(char *pData, const RID& rid) {
 		IX_PRINTSTACK
 
 	NodeHeader *leaf;
-	if (rc = SearchLeafNode(pData, root, leaf))
+	if (rc = SearchLeafNodeWithRID(pData, root, leaf))
 		IX_PRINTSTACK
-	if (rc = leaf->DeleteRID(pData, rid))
+	if (rc = leaf->DeleteRID(pData))
 		IX_PRINTSTACK
 
 	if (rc = UnpinPages())
@@ -782,10 +834,11 @@ RC TreeHeader::Delete(char *pData, const RID& rid) {
 	return OK_RC;
 }
 
-RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index) {
+RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &index, bool &newPage) {
 	RC rc;
 
 	bool gt = CompareAttr(cur->key(index), GT_OP, pData);
+	newPage = false;
 
 	++index;
 	if (IsValidScanResult(pData, compOp, cur, index))
@@ -797,6 +850,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 		}
 		if (rc = cur->NextPage(cur))
 			IX_PRINTSTACK
+		newPage = true;
 		index = 0;
 		if (!IsValidScanResult(pData, compOp, cur, index))
 			cur = nullptr;
@@ -806,9 +860,12 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 			NodeHeader *root;
 			if (rc = GetPageData(rootPNum, root))
 				IX_PRINTSTACK
+			appendMinRID(pData);
 			if (rc = SearchLeafNode(pData, root, cur))
 				IX_PRINTSTACK
-			index = cur->UpperBound(pData);
+			appendMaxRID(pData);
+			newPage = true;
+			index = cur->UpperBoundWithRID(pData);
 			if (IsValidScanResult(pData, compOp, cur, index))
 				return OK_RC;
 			if (index != cur->childNum || !cur->HaveNextPage()) {
@@ -817,6 +874,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 			}
 			if (rc = cur->NextPage(cur))
 				IX_PRINTSTACK
+			newPage = true;
 			index = 0;
 			if (!IsValidScanResult(pData, compOp, cur, index))
 				cur = nullptr;
@@ -824,6 +882,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 		}
 		if (rc = cur->NextPage(cur))
 			IX_PRINTSTACK
+		newPage = true;
 		index = 0;
 		if (!IsValidScanResult(pData, compOp, cur, index))
 			cur = nullptr;
@@ -832,25 +891,11 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 	return OK_RC;
 }
 
-RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
+RC TreeHeader::SearchLeafNodeWithRID(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
 	RC rc;
 	//printf(" selfPNum = [");
 	while (cur->nodeType != LeafNode) {
-		int index = cur->UpperBound(pData);
-		/*if (*(int*)pData == 10) {
-			printf("selfPNum: %d ----", cur->selfPNum);
-			for (int i = 0; i < cur->childNum; ++i) {
-				int tKey = *(int*)cur->key(i);
-				RID tRID = *cur->rid(i);
-				int tPageNum;
-				int tSlotNum;
-				tRID.GetPageNum(tPageNum);
-				tRID.GetSlotNum(tSlotNum);
-				printf("%d: tKey = %d tRID = (%d, %d)\n", i, tKey, tPageNum, tSlotNum);
-			}
-			printf("index = %d\n", index);
-		}*/
-		//printf("(%d", *(int*)cur->key(index));
+		int index = cur->UpperBoundWithRID(pData);
 		int lastPNum = cur->selfPNum;
 		if (rc = cur->ChildPage(index, cur))
 			IX_PRINTSTACK
@@ -864,6 +909,40 @@ RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
 	leaf = cur;
 
 	return OK_RC;
+}
+
+RC TreeHeader::SearchLeafNode(char *pData, NodeHeader *cur, NodeHeader *&leaf) {
+    RC rc;
+    //printf("pagenum: %d\n", cur->selfPNum);
+    while (cur->nodeType != LeafNode) {
+        NodeHeader *p = cur;
+        int index = p->UpperBoundWithRID(pData);
+        int lastPNum = p->selfPNum;
+        if (rc = p->ChildPage(index, cur))
+            IX_PRINTSTACK
+        //printf("pagenum: %d\n", cur->selfPNum);
+        /*if (cur->HaveNextPage()) {
+            if (CompareAttrWithRID(cur->lastKey(), LT_OP, pData)) {
+                if (rc = cur->NextPage(cur))
+                    IX_PRINTSTACK
+                printf("+1 %%%% pagenum: %d\n", cur->selfPNum);
+            }
+        }*/
+        cur->parentPNum = lastPNum; // important !!!
+        if (rc = cur->MarkDirty())
+            IX_PRINTSTACK
+    }
+    while (cur->HaveNextPage()) {
+        if (CompareAttrWithRID(cur->lastKey(), LT_OP, pData)) {
+            if (rc = cur->NextPage(cur))
+                IX_PRINTSTACK
+            //printf("+1 %%%% pagenum: %d\n", cur->selfPNum);
+        } else {
+            break;
+        }
+    }
+    leaf = cur;
+    return OK_RC;
 }
 
 RC TreeHeader::GetFirstLeafNode(NodeHeader *&leaf) {
@@ -890,4 +969,58 @@ bool TreeHeader::IsValidScanResult(char *pData, CompOp compOp, NodeHeader *cur, 
 	if (index < 0 || index >= cur->childNum)
 		return false;
 	return CompareAttr(cur->key(index), compOp, pData);
+}
+
+void TreeHeader::appendMaxRID(char *pData) {
+	static RID maxRID(numeric_limits<int>::max(), numeric_limits<int>::max());
+	memmove(pData + attrLength, &maxRID, sizeof(RID));
+}
+
+void TreeHeader::appendMinRID(char *pData) {
+	static RID minRID(-1, -1);
+	memmove(pData + attrLength, &minRID, sizeof(RID));
+}
+
+RC TreeHeader::DisplayAllTree() {
+	RC rc;
+	int depth = 0;
+    char leftBuffer[PF_PAGE_SIZE];
+    char curBuffer[PF_PAGE_SIZE];
+	NodeHeader *left = nullptr;
+	if ((rc = GetPageData(rootPNum, left)))
+		IX_PRINTSTACK
+    memmove(leftBuffer, left, PF_PAGE_SIZE);
+    UnpinPages();
+	while (true) {
+		printf("\n depth  %d  \n\n", depth);
+		NodeHeader* cur = (NodeHeader*)leftBuffer;
+		while (true) {
+			printf("\nnew page  %d\n\nprev page  %d  next  page  %d\n\n", cur->selfPNum, cur->prevPNum, cur->nextPNum);
+            int maxC = cur->nodeType == LeafNode ? cur->childNum : cur->childNum - 1;
+			for (int i = 0; i < maxC; ++i) {
+                if (cur->nodeType == InternalNode)
+				    printf("page: %d\n", *(cur->page(i)));
+				PageNum pageNum;
+				SlotNum slotNum;
+				if ((rc = cur->rid(i)->GetPageNum(pageNum)) || (rc = cur->rid(i)->GetSlotNum(slotNum))) IX_PRINTSTACK
+				printf("key: %d, rid: ( %d, %d )\n", *(int*)(cur->key(i)), pageNum, slotNum);
+			}
+            if (cur->nodeType == InternalNode)
+			    printf("page: %d\n", *(cur->page(cur->childNum - 1)));
+			if (!cur->HaveNextPage())
+				break;
+			if ((rc = cur->NextPage(cur)))
+				IX_PRINTSTACK
+            memmove(curBuffer, cur, PF_PAGE_SIZE);
+            UnpinPages();
+		}
+        left = (NodeHeader*)leftBuffer;
+		if (left->nodeType == LeafNode)
+			break;
+		if ((rc = left->ChildPage(0, left)))
+			IX_PRINTSTACK
+		memmove(leftBuffer, left, PF_PAGE_SIZE);
+	}
+    UnpinPages();
+	return OK_RC;
 }

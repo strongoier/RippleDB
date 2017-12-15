@@ -11,8 +11,12 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid) {
 
     if (!isOpen)
         IX_ERROR(IX_INDEXHANDLECLOSED)
+
+    char tmp[300];
+    memmove(tmp, pData, treeHeader->attrLength);
+    memmove(tmp + treeHeader->attrLength, &rid, sizeof(RID));
     
-    if (rc = treeHeader->Insert((char*)pData, rid))
+    if (rc = treeHeader->Insert((char*)tmp))
         IX_PRINTSTACK;
 
     return OK_RC;
@@ -25,7 +29,11 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid) {
     if (!isOpen)
         IX_ERROR(IX_INDEXHANDLECLOSED)
 
-    if (rc = treeHeader->Delete((char*)pData, rid))
+    char tmp[300];
+    memmove(tmp, pData, treeHeader->attrLength);
+    memmove(tmp + treeHeader->attrLength, &rid, sizeof(RID));
+
+    if (rc = treeHeader->Delete((char*)tmp))
         IX_PRINTSTACK
 
     return OK_RC;
@@ -41,6 +49,10 @@ RC IX_IndexHandle::ForcePages() {
     if (rc = indexFH.ForcePages())
         IX_ERROR(rc)
     return OK_RC;
+}
+
+RC IX_IndexHandle::DisplayAllTree() {
+    treeHeader->DisplayAllTree();
 }
 
 // Create a new Index.
@@ -66,9 +78,9 @@ RC IX_IndexHandle::CreateIndex(AttrType attrType, int attrLength) {
     treeHeader->rootPNum = rootPNum;
     treeHeader->attrType = attrType;
     treeHeader->attrLength = attrLength;
-    treeHeader->childItemSize = max(sizeof(PageNum), sizeof(RID));
-    treeHeader->maxChildNum = (PF_PAGE_SIZE - sizeof(NodeHeader)) / (attrLength + treeHeader->childItemSize);
-    treeHeader->duplicateValuesAllowed = false;
+    treeHeader->attrLengthWithRid = attrLength + sizeof(RID);
+    treeHeader->childItemSize = sizeof(PageNum);
+    treeHeader->maxChildNum = (PF_PAGE_SIZE - sizeof(NodeHeader)) / (treeHeader->attrLengthWithRid + treeHeader->childItemSize);
     treeHeader->dataHeadPNum = treeHeader->rootPNum;
     treeHeader->dataTailPNum = treeHeader->rootPNum;
     rootHeader->selfPNum = rootPNum;
