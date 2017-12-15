@@ -87,7 +87,9 @@ RC SM_Manager::CreateTable(const char* relName, int attrCount, AttrInfo* attribu
     if (rc != RM_EOF) {
         return SM_RELEXIST;
     }
-    fileScan.CloseScan();
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
     // update attrcat
     char* recordData = new char[AttrCat::SIZE];
     RID rid;
@@ -181,7 +183,9 @@ RC SM_Manager::DropTable(const char* relName) {
         }
         break;
     }
-    fileScan.CloseScan();
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
     if ((rc = attrcatFileHandle.ForcePages())) {
         return rc;
     }
@@ -236,11 +240,10 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if (attrCat.indexNo != -1) {
             return SM_INDEXEXIST;
         }
-        // found && create index
-        if ((rc = ixm.CreateIndex(relName, relCat.indexCount, attrCat.attrType, attrCat.attrLength))) {
+        // found && update info
+        if ((rc = fileScan.CloseScan())) {
             return rc;
         }
-        // update info
         attrCat.indexNo = relCat.indexCount++;
         attrCat.WriteRecordData(attrCatData);
         if ((rc = attrcatFileHandle.UpdateRec(attrCatRec))) {
@@ -256,9 +259,54 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if ((rc = relcatFileHandle.ForcePages())) {
             return rc;
         }
+        // create index
+        if ((rc = ixm.CreateIndex(relName, attrCat.indexNo, attrCat.attrType, attrCat.attrLength))) {
+            return rc;
+        }
+        IX_IndexHandle indexHandle;
+        if ((rc = ixm.OpenIndex(relName, attrCat.indexNo, indexHandle))) {
+            return rc;
+        }
+        // insert each record into index
+        RM_FileHandle relFileHandle;
+        if ((rc = rmm.OpenFile(relName, relFileHandle))) {
+            return rc;
+        }
+        if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+            return rc;
+        }
+        while (true) {
+            RM_Record record;
+            if ((rc = fileScan.GetNextRec(record)) != 0 && rc != RM_EOF) {
+                return rc;
+            }
+            if (rc == RM_EOF) {
+                break;
+            }
+            char* recordData;
+            if ((rc = record.GetData(recordData))) {
+                return rc;
+            }
+            RID rid;
+            if ((rc = record.GetRid(rid))) {
+                return rc;
+            }
+            if ((rc = indexHandle.InsertEntry(recordData + attrCat.offset, rid))) {
+                return rc;
+            }
+        }
+        // close things
+        if ((rc = fileScan.CloseScan())) {
+            return rc;
+        }
+        if ((rc = rmm.CloseFile(relFileHandle))) {
+            return rc;
+        }
+        if ((rc = ixm.CloseIndex(indexHandle))) {
+            return rc;
+        }
         break;
     }
-    fileScan.CloseScan();
     // success
     cout << "[CreateIndex]" << endl
          << "relName=" << relName << endl
@@ -317,7 +365,9 @@ RC SM_Manager::DropIndex(const char* relName, const char* attrName) {
         }
         break;
     }
-    fileScan.CloseScan();
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
     // success
     cout << "[DropIndex]" << endl
          << "relName=" << relName << endl
@@ -486,7 +536,9 @@ RC SM_Manager::CheckRelExist(const char* relName, RM_Record& relCatRec) {
     if (rc == RM_EOF) {
         return SM_RELNOTFOUND;
     }
-    fileScan.CloseScan();
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
     return OK_RC;
 }
 
@@ -510,7 +562,9 @@ RC SM_Manager::GetAttrs(const char* relName, vector<AttrCat>& attrs) {
         }
         attrs.push_back(AttrCat(attrCatData));
     }
-    fileScan.CloseScan();
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
     sort(attrs.begin(), attrs.end(), [](AttrCat a, AttrCat b) -> bool { return a.offset < b.offset; });
     return OK_RC;
 }
