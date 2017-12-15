@@ -3,3 +3,4 @@ build/*
 lib/*
 test/*
 cmake-build-debug/*
+.idea/*
