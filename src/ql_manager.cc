@@ -1,3 +1,9 @@
+//
+// File:        ql_manager.cc
+// Description: QL_Manager class implementation
+// Authors:     Shihong Yan
+//
+
 #include <cstdio>
 #include <iostream>
 #include <algorithm>

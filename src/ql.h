@@ -1,9 +1,8 @@
 //
-// ql.h
-//   Query Language Component Interface
+// File:        ql.h
+// Description: Query Language component interface
+// Authors:     Shihong Yan (Modified from the original file in Stanford CS346 RedBase)
 //
-
-// This file only gives the stub for the QL component
 
 #ifndef QL_H
 #define QL_H
