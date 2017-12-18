@@ -8,14 +8,68 @@
 #define RM_H
 
 // Do not change the following includes
+#include <vector>
 #include "global.h"
 #include "pf.h"
+#include "parser.h"
 
 //
 // RM_FileHeader: Header structure for files
 //
 #define RM_PAGE_LIST_END -1
 #define RM_PAGE_FULL     -2
+
+//
+// RelCat: Relation Catalog
+//
+struct RelCat {
+    static const int SIZE = MAXNAME + sizeof(int) + sizeof(int) + sizeof(int);
+
+    char relName[MAXNAME]; // relation name
+    int tupleLength; // tuple length in bytes
+    int attrCount; // number of attributes
+    int indexCount; // number of indexed attributes
+
+    RelCat() = default;
+    // Construct from char* data.
+    RelCat(const char* recordData);
+    // Construct from values.
+    RelCat(const char* relName, int tupleLength, int attrCount, int indexCount);
+
+    // Convert to char* data.
+    void WriteRecordData(char* recordData);
+};
+
+//
+// AttrCat: Attribute Catalog
+//
+struct AttrCat {
+    static const int SIZE = MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
+
+    char relName[MAXNAME]; // this attribute's relation
+    char attrName[MAXNAME]; // attribute name
+    int offset; // offset in bytes from beginning of tuple
+    AttrType attrType; // attribute type
+    int attrLength; // attribute length
+    int indexNo; // index number, or -1 if not indexed
+
+    AttrCat() = default;
+    // Construct from char* data.
+    AttrCat(const char* recordData);
+    // Construct from values.
+    AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo);
+
+    // Convert to char* data.
+    void WriteRecordData(char* recordData);
+};
+
+struct FullCondition {
+    AttrCat lhsAttr;
+    CompOp op;
+    int bRhsIsAttr;
+    AttrCat rhsAttr;
+    Value rhsValue;
+};
 
 struct RM_FileHeader {
     int recordSize;           // record size
@@ -104,6 +158,8 @@ public:
 
     // Initialize a file scan.
     RC OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int attrLength, int attrOffset, CompOp compOp, void* value);
+    // Initialize a file scan.
+    RC OpenScan(const RM_FileHandle& fileHeader, const std::vector<FullCondition>& conditions);
     // Get next matching record.
     RC GetNextRec(RM_Record& rec);
     // Close the scan.

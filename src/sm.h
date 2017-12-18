@@ -17,52 +17,13 @@
 #include "ix.h"
 using std::vector;
 
-//
-// RelCat: Relation Catalog
-//
-struct RelCat {
-    static const int SIZE = MAXNAME + sizeof(int) + sizeof(int) + sizeof(int);
-
-    char relName[MAXNAME]; // relation name
-    int tupleLength; // tuple length in bytes
-    int attrCount; // number of attributes
-    int indexCount; // number of indexed attributes
-
-    // Construct from char* data.
-    RelCat(const char* recordData);
-    // Construct from values.
-    RelCat(const char* relName, int tupleLength, int attrCount, int indexCount);
-
-    // Convert to char* data.
-    void WriteRecordData(char* recordData);
-};
-
-//
-// AttrCat: Attribute Catalog
-//
-struct AttrCat {
-    static const int SIZE = MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
-
-    char relName[MAXNAME]; // this attribute's relation
-    char attrName[MAXNAME]; // attribute name
-    int offset; // offset in bytes from beginning of tuple
-    AttrType attrType; // attribute type
-    int attrLength; // attribute length
-    int indexNo; // index number, or -1 if not indexed
-
-    // Construct from char* data.
-    AttrCat(const char* recordData);
-    // Construct from values.
-    AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo);
-
-    // Convert to char* data.
-    void WriteRecordData(char* recordData);
-};
+class QL_Manager;
 
 //
 // SM_Manager: provides system management
 //
 class SM_Manager {
+    friend QL_Manager;
 public:
     friend class QL_Manager;
 

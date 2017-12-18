@@ -16,6 +16,15 @@
 #include "ix.h"
 #include "sm.h"
 
+class RM_FileIterator {
+public:
+    RM_FileIterator(RM_FileHandle& rfh, Condition c);
+private:
+    RM_FileHandle& rmFileHandle;
+    RM_FileScan rmFileScan;
+    Condition condition;
+};
+
 //
 // QL_Manager: query language (DML)
 //
@@ -48,11 +57,22 @@ public:
         const Condition conditions[]);   // conditions in where clause
 
 private:
+    RM_Manager& rmManager;
+    IX_Manager& ixManager;
+    SM_Manager& smManager;
+
+    RC GetFullConditions(const char* relName, const std::vector<AttrCat>& attrs, int nConditions, const Condition conditions[], std::vector<FullCondition>& fullConditions);
 };
 
 //
 // Print-error function
 //
 void QL_PrintError(RC rc);
+
+#define QL_DBNOTOPEN        (START_QL_WARN + 0)  // no db is open
+#define QL_RELNOTFIND       (START_QL_WARN + 1)  // relation not found
+#define QL_ATTRSNUMBERWRONG (START_QL_WARN + 2)  // attr number not right
+#define QL_ATTRTYPEWRONG    (START_QL_WARN + 3)  // attr type not right
+#define QL_ATTRNOTFOUND     (START_QL_WARN + 4)  // attribute not found
 
 #endif
