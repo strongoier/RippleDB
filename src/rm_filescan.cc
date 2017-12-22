@@ -8,7 +8,7 @@
 #include <cstring>
 
 RM_FileScan::RM_FileScan() {
-    isOpen = false;
+    isOpen = RM_SCANSTATUS_CLOSE;
 }
 
 RM_FileScan::~RM_FileScan() {
@@ -18,7 +18,7 @@ RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int
                          int attrOffset, CompOp compOp, void* value) {
     RC rc;
     // check whether fileScan is already open
-    if (isOpen) {
+    if (isOpen != RM_SCANSTATUS_CLOSE) {
         return RM_FILESCANOPEN;
     }
     // check whether fileHandle is open
@@ -49,7 +49,35 @@ RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int
     }
     slotNum = fileHeader.numRecordsPerPage - 1;
     // success
-    isOpen = true;
+    isOpen = RM_SCANSTATUS_SINGLE;
+    isEOF = false;
+    return OK_RC;
+}
+
+RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, const std::vector<FullCondition>& conditions) {
+    RC rc;
+    // check whether fileScan is already open
+    if (isOpen != RM_SCANSTATUS_CLOSE) {
+        return RM_FILESCANOPEN;
+    }
+    // check whether fileHandle is open
+    if (!fileHandle.isOpen) {
+        return RM_FILEHANDLECLOSED;
+    }
+    // copy the parameters
+    this->fileHeader = fileHandle.fileHeader;
+    this->pfFileHandle = fileHandle.pfFileHandle;
+    this->conditions = conditions;
+    // get first page
+    if ((rc = pfFileHandle.GetFirstPage(pageHandle))) {
+        return rc;
+    }
+    if ((rc = pageHandle.GetPageNum(pageNum))) {
+        return rc;
+    }
+    slotNum = fileHeader.numRecordsPerPage - 1;
+    // success
+    isOpen = RM_SCANSTATUS_MULTIPLE;
     isEOF = false;
     return OK_RC;
 }
@@ -57,7 +85,7 @@ RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int
 RC RM_FileScan::GetNextRec(RM_Record& rec) {
     RC rc;
     // check whether fileScan is open
-    if (!isOpen) {
+    if (isOpen == RM_SCANSTATUS_CLOSE) {
         return RM_FILESCANCLOSED;
     }
     // check whether isEOF
@@ -90,15 +118,24 @@ RC RM_FileScan::GetNextRec(RM_Record& rec) {
             ++slotNum;
         }
         // check whether record exist and satisfies the scan condition
-        if ((pData[sizeof(PageNum) + slotNum / 8] & (1 << (slotNum & 7))) &&
-            Attr::CompareAttr(attrType, attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset, compOp, value)) {
-            rec.rid = RID(pageNum, slotNum);
-            if (rec.pData != NULL) {
-                delete[] rec.pData;
+        if (pData[sizeof(PageNum) + slotNum / 8] & (1 << (slotNum & 7))) {
+            bool satisfy = true;
+            if (isOpen == RM_SCANSTATUS_SINGLE) {
+                satisfy = Attr::CompareAttr(attrType, attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset, compOp, value);
+            } else if (isOpen == RM_SCANSTATUS_MULTIPLE) {
+                for (int i = 0; satisfy && i < conditions.size(); ++i) {
+                    satisfy = satisfy && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset, conditions[i].op, conditions[i].bRhsIsAttr ? pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].rhsAttr.offset : conditions[i].rhsValue.data);
+                }
             }
-            rec.pData = new char[fileHeader.recordSize];
-            memcpy(rec.pData, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize, fileHeader.recordSize);
-            found = true;
+            if (satisfy) {
+                rec.rid = RID(pageNum, slotNum);
+                if (rec.pData != NULL) {
+                    delete[] rec.pData;
+                }
+                rec.pData = new char[fileHeader.recordSize];
+                memcpy(rec.pData, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize, fileHeader.recordSize);
+                found = true;
+            }
         }
     } while (!found);
     // success
@@ -108,7 +145,7 @@ RC RM_FileScan::GetNextRec(RM_Record& rec) {
 RC RM_FileScan::CloseScan() {
     RC rc;
     // check whether fileScan is open
-    if (!isOpen) {
+    if (isOpen == RM_SCANSTATUS_CLOSE) {
         return RM_FILESCANCLOSED;
     }
     // unpin current page
@@ -116,6 +153,6 @@ RC RM_FileScan::CloseScan() {
         return rc;
     }
     // success
-    isOpen = false;
+    isOpen = RM_SCANSTATUS_CLOSE;
     return OK_RC;
 }

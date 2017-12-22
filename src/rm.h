@@ -14,12 +14,6 @@
 #include "parser.h"
 
 //
-// RM_FileHeader: Header structure for files
-//
-#define RM_PAGE_LIST_END -1
-#define RM_PAGE_FULL     -2
-
-//
 // RelCat: Relation Catalog
 //
 struct RelCat {
@@ -71,6 +65,11 @@ struct FullCondition {
     Value rhsValue;
 };
 
+//
+// RM_FileHeader: Header structure for files
+//
+#define RM_PAGE_LIST_END -1
+#define RM_PAGE_FULL     -2
 struct RM_FileHeader {
     int recordSize;           // record size
     int numRecordsPerPage;    // number of records per page
@@ -151,6 +150,9 @@ private:
 //
 // RM_FileScan: condition-based scan of records in the file
 //
+#define RM_SCANSTATUS_CLOSE 0
+#define RM_SCANSTATUS_SINGLE 1
+#define RM_SCANSTATUS_MULTIPLE 2
 class RM_FileScan {
 public:
     RM_FileScan();
@@ -158,8 +160,8 @@ public:
 
     // Initialize a file scan.
     RC OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int attrLength, int attrOffset, CompOp compOp, void* value);
-    // Initialize a file scan.
-    RC OpenScan(const RM_FileHandle& fileHeader, const std::vector<FullCondition>& conditions);
+    // Initialize a file scan with multiple conditions.
+    RC OpenScan(const RM_FileHandle& fileHandle, const std::vector<FullCondition>& conditions);
     // Get next matching record.
     RC GetNextRec(RM_Record& rec);
     // Close the scan.
@@ -181,8 +183,9 @@ private:
     char *pData; // current page data pointer
     PageNum pageNum; // current pageNum;
     SlotNum slotNum; // current slotNum
-    bool isOpen; // whether this fileScan is open
+    int isOpen; // whether this fileScan is open
     bool isEOF; // whether there are no records left satisfying the scan condition
+    std::vector<FullCondition> conditions; // multiple scan conditions
 };
 
 //
