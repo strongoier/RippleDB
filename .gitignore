@@ -5,3 +5,10 @@ test/*
 cmake-build-debug/*
 .idea/*
 .vscode/*
+src/test/*
+src/redbase
+src/dbcreate
+src/dbdestroy
+src/parse.c
+src/scan.c
+src/y.tab.h

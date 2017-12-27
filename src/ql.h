@@ -9,20 +9,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <map>
 #include "global.h"
 #include "parser.h"
 #include "rm.h"
 #include "ix.h"
 #include "sm.h"
-
-class RM_FileIterator {
-public:
-    RM_FileIterator(RM_FileHandle& rfh, Condition c);
-private:
-    RM_FileHandle& rmFileHandle;
-    RM_FileScan rmFileScan;
-    Condition condition;
-};
 
 //
 // QL_Manager: query language (DML)
@@ -60,7 +53,29 @@ private:
     IX_Manager& ixManager;
     SM_Manager& smManager;
 
+    RC CheckSMManagerIsOpen();
+
+    RC CheckRelCat(const char* relName, RelCat& relCat);
+
+    RC CheckRelCats(int nRelations, const char* const relations[], std::map<RelCat, std::vector<AttrCat>>& relCats);
+
+    RC CheckAttrCat(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, RelCat& relCat, AttrCat& attrCat);
+
+    RC CheckAttrCats(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<AttrCat>>& attrs);
+
     RC GetFullConditions(const char* relName, const std::vector<AttrCat>& attrs, int nConditions, const Condition conditions[], std::vector<FullCondition>& fullConditions);
+
+    RC GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds);
+
+    RC GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<RID>& rids);
+
+    RC GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<char*>& data);
+
+    RC CheckFullConditions(char* recordData, const std::vector<FullCondition>& fullConditions, bool& result);
+
+    bool CheckFullCondition(char* aData, char* bData, const std::vector<FullCondition>& conditions);
+
+    RC GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds, std::vector<std::map<RelCat, char*>>& joinData);
 };
 
 //
@@ -73,5 +88,8 @@ void QL_PrintError(RC rc);
 #define QL_ATTRSNUMBERWRONG (START_QL_WARN + 2)  // attr number not right
 #define QL_ATTRTYPEWRONG    (START_QL_WARN + 3)  // attr type not right
 #define QL_ATTRNOTFOUND     (START_QL_WARN + 4)  // attribute not found
+#define QL_RELMULTIAPPEAR   (START_QL_WARN + 5)  // relation variables to distinguish multiple appearances
+#define QL_RELNOTFOUND      (START_QL_WARN + 6)  // relation not found
+#define QL_ATTRMULTIAPPEAR  (START_QL_WARN + 7)  // attribute multi appear
 
 #endif

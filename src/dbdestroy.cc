@@ -17,7 +17,6 @@ using namespace std;
 int main(int argc, char* argv[]) {
     char* dbname;
     char command[255] = "rm -rf ";
-    RC rc;
 
     // Look for 2 arguments. The first is always the name of the program
     // that was executed, and the second should be the name of the database.
@@ -30,7 +29,8 @@ int main(int argc, char* argv[]) {
     dbname = argv[1];
 
     // Remove the subdirectory for the database.
-    system(strcat(command, dbname));
+    if (system(strcat(command, dbname)) != 0)
+        return 1;
 
     return 0;
 }

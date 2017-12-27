@@ -25,6 +25,14 @@ void RelCat::WriteRecordData(char* recordData) {
     Attr::SetAttr(recordData + MAXNAME + sizeof(int) + sizeof(int), INT, &indexCount);
 }
 
+bool operator==(const RelCat& a, const RelCat& b) {
+    return strcmp(a.relName, b.relName) == 0;
+}
+
+bool operator<(const RelCat& a, const RelCat& b) {
+    return strcmp(a.relName, b.relName) < 0;
+}
+
 AttrCat::AttrCat(const char* recordData) {
     strcpy(relName, recordData);
     strcpy(attrName, recordData + MAXNAME);
@@ -47,4 +55,8 @@ void AttrCat::WriteRecordData(char* recordData) {
     Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int), INT, &attrType);
     Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, &attrLength);
     Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, &indexNo);
+}
+
+bool operator==(const AttrCat& a, const AttrCat& b) {
+    return strcmp(a.relName, b.relName) == 0 && strcmp(a.attrName, b.attrName) == 0;
 }

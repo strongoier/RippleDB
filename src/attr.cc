@@ -98,6 +98,7 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
             break;
         }
     }
+    return true;
 }
 
 void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
@@ -174,6 +175,7 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
             }
             break;
     }
+    return true;
 }
 
 int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {

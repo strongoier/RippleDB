@@ -96,6 +96,8 @@ RC RM_FileHandle::InsertRec(const char *pRecData, RID &rid) {
         if (!(pData[sizeof(PageNum) + i] & (1 << j))) {
             pData[sizeof(PageNum) + i] ^= 1 << j;
             memcpy(pData + sizeof(PageNum) + fileHeader.bitmapSize + (i * 8 + j) * fileHeader.recordSize, pRecData, fileHeader.recordSize);
+            rid.pageNum = pageNum;
+            rid.slotNum = i * 8 + j;
             break;
         }
     }

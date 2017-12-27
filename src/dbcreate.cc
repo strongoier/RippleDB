@@ -30,7 +30,8 @@ int main(int argc, char* argv[]) {
     dbname = argv[1];
 
     // Create a subdirectory for the database
-    system(strcat(command, dbname));
+    if (system(strcat(command, dbname)) != 0)
+        return 1;
     if (chdir(dbname) < 0) {
         cerr << argv[0] << " chdir error to " << dbname << "\n";
         exit(1);

@@ -34,6 +34,9 @@ struct RelCat {
     void WriteRecordData(char* recordData);
 };
 
+bool operator==(const RelCat& a, const RelCat& b);
+bool operator<(const RelCat& a, const RelCat& b);
+
 //
 // AttrCat: Attribute Catalog
 //
@@ -56,6 +59,8 @@ struct AttrCat {
     // Convert to char* data.
     void WriteRecordData(char* recordData);
 };
+
+bool operator==(const AttrCat& a, const AttrCat& b);
 
 struct FullCondition {
     AttrCat lhsAttr;

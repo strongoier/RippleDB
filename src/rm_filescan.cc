@@ -123,7 +123,7 @@ RC RM_FileScan::GetNextRec(RM_Record& rec) {
             if (isOpen == RM_SCANSTATUS_SINGLE) {
                 satisfy = Attr::CompareAttr(attrType, attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset, compOp, value);
             } else if (isOpen == RM_SCANSTATUS_MULTIPLE) {
-                for (int i = 0; satisfy && i < conditions.size(); ++i) {
+                for (unsigned int i = 0; satisfy && i < conditions.size(); ++i) {
                     satisfy = satisfy && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset, conditions[i].op, conditions[i].bRhsIsAttr ? pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].rhsAttr.offset : conditions[i].rhsValue.data);
                 }
             }

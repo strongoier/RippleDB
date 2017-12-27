@@ -407,18 +407,18 @@ RC SM_Manager::Load(const char* relName, const char* fileName) {
         int attrid = 0;
         for (int i = 0, last = 0; ; ++i) {
             if (buf[i] == ',' || buf[i] == 0) {
-                if (attrid == attrs.size()) {
+                if (attrid == (int)attrs.size()) {
                     return SM_LOADERROR;
                 }
                 char value[MAXSTRINGLEN];
                 switch (attrs[attrid].attrType) {
                     case INT:
-                        if (sscanf(buf + last, "%d", &value) != 1) {
+                        if (sscanf(buf + last, "%d", (int*)&value) != 1) {
                             return SM_LOADERROR;
                         }
                         break;
                     case FLOAT:
-                        if (sscanf(buf + last, "%f", &value) != 1) {
+                        if (sscanf(buf + last, "%f", (float*)&value) != 1) {
                             return SM_LOADERROR;
                         }
                         break;
@@ -438,7 +438,7 @@ RC SM_Manager::Load(const char* relName, const char* fileName) {
                 }
             }
         }
-        if (attrid < attrs.size()) {
+        if (attrid < (int)attrs.size()) {
             return SM_LOADERROR;
         }
         // a record ok
@@ -476,7 +476,7 @@ RC SM_Manager::Print(const char* relName) {
     }
     // fill in the attributes structure and print the header information
     DataAttrInfo* attributes = new DataAttrInfo[attrs.size()];
-    for (int i = 0; i < attrs.size(); ++i) {
+    for (unsigned int i = 0; i < attrs.size(); ++i) {
         strcpy(attributes[i].relName, attrs[i].relName);
         strcpy(attributes[i].attrName, attrs[i].attrName);
         attributes[i].offset = attrs[i].offset;

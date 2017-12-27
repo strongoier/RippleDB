@@ -22,7 +22,7 @@ RC IX_IndexHandle::InsertEntry(void *pData, const RID &rid) {
     memmove(tmp, pData, treeHeader->attrLength);
     memmove(tmp + treeHeader->attrLength, &rid, sizeof(RID));
     
-    if (rc = treeHeader->Insert((char*)tmp))
+    if ((rc = treeHeader->Insert((char*)tmp)))
         IX_PRINTSTACK;
 
     return OK_RC;
@@ -39,7 +39,7 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid) {
     memmove(tmp, pData, treeHeader->attrLength);
     memmove(tmp + treeHeader->attrLength, &rid, sizeof(RID));
 
-    if (rc = treeHeader->Delete((char*)tmp))
+    if ((rc = treeHeader->Delete((char*)tmp)))
         IX_PRINTSTACK
 
     return OK_RC;
@@ -52,13 +52,13 @@ RC IX_IndexHandle::ForcePages() {
     if (!isOpen)
         IX_ERROR(IX_INDEXHANDLECLOSED)
 
-    if (rc = indexFH.ForcePages())
+    if ((rc = indexFH.ForcePages()))
         IX_ERROR(rc)
     return OK_RC;
 }
 
 RC IX_IndexHandle::DisplayAllTree() {
-    treeHeader->DisplayAllTree();
+    return treeHeader->DisplayAllTree();
 }
 
 // Create a new Index.
@@ -72,9 +72,9 @@ RC IX_IndexHandle::CreateIndex(AttrType attrType, int attrLength) {
     PF_PageHandle rootPH;
     PageNum rootPNum;
     char *rootPData;
-    if (rc = IX_AllocatePage(indexFH, infoPH, infoPNum, infoPData))
+    if ((rc = IX_AllocatePage(indexFH, infoPH, infoPNum, infoPData)))
         IX_ERROR(rc)
-    if (rc = IX_AllocatePage(indexFH, rootPH, rootPNum, rootPData))
+    if ((rc = IX_AllocatePage(indexFH, rootPH, rootPNum, rootPData)))
         IX_ERROR(rc)
 
     // Setup info page and root page.
@@ -95,13 +95,13 @@ RC IX_IndexHandle::CreateIndex(AttrType attrType, int attrLength) {
     rootHeader->prevPNum = treeHeader->infoPNum;
     rootHeader->nextPNum = treeHeader->infoPNum;
     rootHeader->childNum = 0;
-    if (rc = indexFH.MarkDirty(infoPNum))
+    if ((rc = indexFH.MarkDirty(infoPNum)))
         IX_ERROR(rc)
-    if (rc = indexFH.MarkDirty(rootPNum))
+    if ((rc = indexFH.MarkDirty(rootPNum)))
         IX_ERROR(rc)
-    if (rc = indexFH.UnpinPage(infoPNum))
+    if ((rc = indexFH.UnpinPage(infoPNum)))
         IX_ERROR(rc)
-    if (rc = indexFH.UnpinPage(rootPNum))
+    if ((rc = indexFH.UnpinPage(rootPNum)))
         IX_ERROR(rc)
 
     return OK_RC;
@@ -111,9 +111,9 @@ RC IX_IndexHandle::OpenIndex() {
     RC rc;
     PF_PageHandle infoPH;
     char *infoPData;
-    if (rc = indexFH.GetFirstPage(infoPH))
+    if ((rc = indexFH.GetFirstPage(infoPH)))
         IX_ERROR(rc)
-    if (rc = infoPH.GetData(infoPData))
+    if ((rc = infoPH.GetData(infoPData)))
         IX_ERROR(rc)
     treeHeader = (TreeHeader*)infoPData;
     treeHeader->pageMap = &(this->pageMap);
@@ -124,9 +124,9 @@ RC IX_IndexHandle::OpenIndex() {
 
 RC IX_IndexHandle::CloseIndex() {
     RC rc;
-    if (rc = indexFH.MarkDirty(treeHeader->infoPNum))
+    if ((rc = indexFH.MarkDirty(treeHeader->infoPNum)))
         IX_ERROR(rc)
-    if (rc = indexFH.UnpinPage(treeHeader->infoPNum))
+    if ((rc = indexFH.UnpinPage(treeHeader->infoPNum)))
         IX_ERROR(rc)
     isOpen = false;
     return OK_RC;

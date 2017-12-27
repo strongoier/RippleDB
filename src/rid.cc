@@ -30,6 +30,11 @@ RC RID::GetSlotNum(SlotNum &slotNum) const {
     return OK_RC;
 }
 
+std::ostream& operator<<(std::ostream& out, const RID& rid) {
+    out << rid.pageNum << " " << rid.slotNum;
+    return out;
+}
+
 bool operator<(const RID& a, const RID& b) {
     return a.pageNum < b.pageNum || (a.pageNum == b.pageNum && a.slotNum < b.slotNum);
 }

@@ -19,7 +19,8 @@ static char* QL_WarnMsg[] = {
     (char*)"relation not found",
     (char*)"attr number not right",
     (char*)"attr type not right",
-    (char*)"attribute not found"
+    (char*)"attribute not found",
+    (char*)"relation variables to distinguish multiple appearances"
 };
 
 //

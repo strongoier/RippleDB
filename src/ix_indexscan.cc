@@ -24,7 +24,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 	}
 	op = compOp;
 
-	if (rc = tree->Search(pData, op, cur, index))
+	if ((rc = tree->Search(pData, op, cur, index)))
 		IX_PRINTSTACK
 
 	if (cur != nullptr) {
@@ -32,7 +32,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 		cur = (NodeHeader*)buffer;
 	}
 
-	if (rc = tree->UnpinPages())
+	if ((rc = tree->UnpinPages()))
 		IX_PRINTSTACK
 	/*printf("maxChildNum: %d\n", tree->maxChildNum);
 	printf("curPage: %d\n", cur->selfPNum);
@@ -108,7 +108,7 @@ RC IX_IndexScan::GetNextEntry(RID &r) {
 
 	bool newPage = false;
 
-	if (rc = tree->GetNextEntry(pData, op, cur, index, newPage))
+	if ((rc = tree->GetNextEntry(pData, op, cur, index, newPage)))
 		IX_PRINTSTACK
 	
 	if (cur != nullptr && newPage) {
@@ -116,7 +116,7 @@ RC IX_IndexScan::GetNextEntry(RID &r) {
 		cur = (NodeHeader*)buffer;
 	}
 	
-	if (rc = tree->UnpinPages())
+	if ((rc = tree->UnpinPages()))
 		IX_PRINTSTACK
 	
 	return OK_RC;

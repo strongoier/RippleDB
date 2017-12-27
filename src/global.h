@@ -7,6 +7,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <iostream>
 #include <cstring>
 #include <utility>
 using std::pair;
@@ -61,6 +62,7 @@ const int ALL_PAGES = -1;
 //
 // TRUE, FALSE and BOOLEAN
 //
+
 #ifndef BOOLEAN
 typedef char Boolean;
 #endif
@@ -132,6 +134,7 @@ typedef int SlotNum;
 // RID: Record ID
 //
 class RID {
+    friend std::ostream& operator<<(std::ostream& out, const RID& rid);
     friend bool operator<(const RID& a, const RID& b);
     friend bool operator<=(const RID& a, const RID& b);
     friend bool operator==(const RID& a, const RID& b);
@@ -149,7 +152,7 @@ public:
     RC GetPageNum(PageNum &pageNum) const;
     RC GetSlotNum(SlotNum &slotNum) const;
 
-private:
+//private:
     PageNum pageNum; // unique page number in a file
     SlotNum slotNum; // unique slot number in a page
 };
