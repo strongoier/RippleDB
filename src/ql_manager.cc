@@ -130,10 +130,10 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
         for (const auto& attr : item.second) {
             strcpy(attributes[index].relName, attr.relName);
             strcpy(attributes[index].attrName, attr.attrName);
-            cerr << attributes[index].attrName << endl;
-            attributes[index].offset = (index == 0 ? 0 : attributes[index - 1].offset + attr.attrLength);
+            attributes[index].offset = tupleLength;
             attributes[index].attrType = attr.attrType;
             attributes[index].attrLength = attr.attrLength;
+            cerr << attributes[index].attrLength << endl;
             attributes[index].indexNo = attr.indexNo;
             tupleLength += attr.attrLength;
             ++index;
