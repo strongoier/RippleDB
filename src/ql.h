@@ -53,18 +53,39 @@ private:
     IX_Manager& ixManager;
     SM_Manager& smManager;
 
+    //
+    // 检查数据库是否被打开
+    //
     RC CheckSMManagerIsOpen();
 
+    //
+    // 检查数据表是否存在，如果存在，提取数据表信息
+    //
     RC CheckRelCat(const char* relName, RelCat& relCat);
 
+    //
+    // 检查数据表是否存在，如果存在，提取数据表信息（并不提取属性信息，属性值为空）
+    //
     RC CheckRelCats(int nRelations, const char* const relations[], std::map<RelCat, std::vector<AttrCat>>& relCats);
 
+    //
+    // 在完整的数据表-属性数据结构中查找某一原始属性结构对应的具体信息
+    //
     RC CheckAttrCat(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, RelCat& relCat, AttrCat& attrCat);
 
+    //
+    // 在完整的数据表-属性数据结构中查找某一原始属性结构对应的具体信息，并写入查询属性集中
+    //
     RC CheckAttrCats(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<AttrCat>>& attrs);
 
+    //
+    // 将原始单表限定条件（delete 与 update 的 where 字句）集合补充为完整单表限制条件集合
+    //
     RC GetFullConditions(const char* relName, const std::vector<AttrCat>& attrs, int nConditions, const Condition conditions[], std::vector<FullCondition>& fullConditions);
 
+    //
+    // 将某一原始单表或多表限定条件（select 的 where 字句）集合补充并归类到完整单表与多表限制条件集合
+    //
     RC GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds);
 
     RC GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<RID>& rids);
