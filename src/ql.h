@@ -41,10 +41,11 @@ public:
         const Condition conditions[]);   // conditions in where clause
 
     RC Update  (const char *relName,     // relation to update
-        const RelAttr &updAttr,          // attribute to update
-        const int bIsValue,              // 1 if RHS is a value, 0 if attribute
-        const RelAttr &rhsRelAttr,       // attr on RHS to set LHS equal to
-        const Value &rhsValue,           // or value to set attr equal to
+        int   nSetters,                  // number of setters
+        const RelAttr updAttr[],         // attribute to update
+        const int bIsValue[],            // 1 if RHS is a value, 0 if attribute
+        const RelAttr rhsRelAttr[],      // attr on RHS to set LHS equal to
+        const Value rhsValue[],          // or value to set attr equal to
         int   nConditions,               // # conditions in where clause
         const Condition conditions[]);   // conditions in where clause
 
