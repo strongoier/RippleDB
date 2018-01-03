@@ -23,6 +23,154 @@ SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm) : ixm(ixm), rmm(rmm), i
 SM_Manager::~SM_Manager() {
 }
 
+RC SM_Manager::CreateDb(const char* dbName) {
+    RC rc;
+    // check whether a db is open
+    if (isOpen) {
+        return SM_DBISOPEN;
+    }
+    char command[255] = "mkdir ";
+    // create a subdirectory for the database
+    if (system(strcat(command, dbName)) != 0) {
+        return SM_SYSERROR;
+    }
+    // cd into the subdirectory
+    if (chdir(dbName) < 0) {
+        return SM_SYSERROR;
+    }
+    // create file for relcat
+    PF_Manager pfm;
+    RM_Manager rmm(pfm);
+    if ((rc = rmm.CreateFile("relcat", RelCat::SIZE))) {
+        return rc;
+    }
+    // open file for relcat
+    RM_FileHandle fileHandle;
+    if ((rc = rmm.OpenFile("relcat", fileHandle))) {
+        return rc;
+    }
+    // add relcat record in relcat
+    char* recordData = new char[RelCat::SIZE];
+    RID rid;
+    RelCat("relcat", RelCat::SIZE, 4, 0).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    // add attrcat record in relcat
+    RelCat("attrcat", AttrCat::SIZE, 6, 0).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    // close file for relcat
+    if ((rc = rmm.CloseFile(fileHandle))) {
+        return rc;
+    }
+    delete[] recordData;
+    // create file for attrcat
+    if ((rc = rmm.CreateFile("attrcat", AttrCat::SIZE))) {
+        return rc;
+    }
+    // open file for attrcat
+    if ((rc = rmm.OpenFile("attrcat", fileHandle))) {
+        return rc;
+    }
+    // add relcat attr records in attrcat
+    recordData = new char[AttrCat::SIZE];
+    AttrCat("relcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("relcat", "tupleLength", MAXNAME, INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("relcat", "attrCount", MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("relcat", "indexCount", MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    // add attrcat attr records in attrcat
+    AttrCat("attrcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "attrName", MAXNAME, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "offset", MAXNAME + MAXNAME, INT, 4, -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "attrType", MAXNAME + MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "attrLength", MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "indexNo", MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    // close file for attrcat
+    if ((rc = rmm.CloseFile(fileHandle))) {
+        return rc;
+    }
+    delete[] recordData;
+    // success
+    chdir("..");
+    cout << "[CreateDB]" << endl;
+    cout << "dbName=" << dbName << endl;
+    return OK_RC;
+}
+
+RC SM_Manager::DropDb(const char* dbName) {
+    RC rc;
+    // check whether a db is open
+    if (isOpen) {
+        return SM_DBISOPEN;
+    }
+    // remove the subdirectory for the database
+    char command[255] = "rm -rf ";
+    if (system(strcat(command, dbName)) != 0) {
+        return SM_SYSERROR;
+    }
+    // success
+    cout << "[DropDB]" << endl;
+    cout << "dbName=" << dbName << endl;
+    return OK_RC;
+}
+
+RC SM_Manager::ShowDbs() {
+    RC rc;
+    // check whether a db is open
+    if (isOpen) {
+        return SM_DBISOPEN;
+    }
+    // get all dirs
+    if (system("ls -1 -d */ > all_dirs.txt") != 0) {
+        return SM_SYSERROR;
+    }
+    char line[MAXSTRINGLEN];
+    FILE* fin = fopen("all_dirs.txt", "r");
+    while (fgets(line, MAXSTRINGLEN, fin) != NULL) {
+        line[strlen(line) - 1] = 0;
+        puts(line);
+    }
+    fclose(fin);
+    if (system("rm all_dirs.txt") != 0) {
+        return SM_SYSERROR;
+    }
+    // success
+    cout << "[ShowDBs]" << endl;
+    return OK_RC;
+}
+
 RC SM_Manager::OpenDb(const char* dbName) {
     RC rc;
     // check whether a db is open
@@ -69,7 +217,42 @@ RC SM_Manager::CloseDb() {
     return OK_RC;
 }
 
-RC SM_Manager::CreateTable(const char* relName, int attrCount, AttrInfo* attributes) {
+RC SM_Manager::ShowTables() {
+    RC rc;
+    // check whether a db is open
+    if (!isOpen) {
+        return SM_DBNOTOPEN;
+    }
+    // set up relcat file scan
+    RM_FileScan fileScan;
+    if ((rc = fileScan.OpenScan(relcatFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+        return rc;
+    }
+    // print each record
+    while (true) {
+        RM_Record record;
+        if ((rc = fileScan.GetNextRec(record)) != 0 && rc != RM_EOF) {
+            return rc;
+        }
+        if (rc == RM_EOF) {
+            break;
+        }
+        char* recordData;
+        if ((rc = record.GetData(recordData))) {
+            return rc;
+        }
+        puts(RelCat(recordData).relName);
+    }
+    // close file scan
+    if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
+    // success
+    cout << "[ShowTables]" << endl;
+    return OK_RC;
+}
+
+RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     RC rc;
     // check whether a db is open
     if (!isOpen) {
@@ -94,12 +277,14 @@ RC SM_Manager::CreateTable(const char* relName, int attrCount, AttrInfo* attribu
     char* recordData = new char[AttrCat::SIZE];
     RID rid;
     int recordSize = 0;
-    for (int i = 0; i < attrCount; ++i) {
-        AttrCat(relName, attributes[i].attrName, recordSize, attributes[i].attrType, attributes[i].attrLength, -1).WriteRecordData(recordData);
-        if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
-            return rc;
+    for (int i = 0; i < fieldCount; ++i) {
+        if (fields[i].attr.attrName != NULL) {
+            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1).WriteRecordData(recordData);
+            if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
+                return rc;
+            }
+            recordSize += fields[i].attr.attrLength;
         }
-        recordSize += attributes[i].attrLength;
     }
     if ((rc = attrcatFileHandle.ForcePages())) {
         return rc;
@@ -107,7 +292,7 @@ RC SM_Manager::CreateTable(const char* relName, int attrCount, AttrInfo* attribu
     delete[] recordData;
     // update relcat
     recordData = new char[RelCat::SIZE];
-    RelCat(relName, recordSize, attrCount, 0).WriteRecordData(recordData);
+    RelCat(relName, recordSize, fieldCount, 0).WriteRecordData(recordData);
     if ((rc = relcatFileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
@@ -122,13 +307,16 @@ RC SM_Manager::CreateTable(const char* relName, int attrCount, AttrInfo* attribu
     // success
     cout << "[CreateTable]" << endl
          << "relName=" << relName << endl
-         << "attrCount=" << attrCount << endl;
-    for (int i = 0; i < attrCount; ++i) {
-        cout << "attributes[" << i << "].attrName=" << attributes[i].attrName
-             << " attrType="
-             << (attributes[i].attrType == INT ? "INT" :
-                 attributes[i].attrType == FLOAT ? "FLOAT" : "STRING")
-             << " attrLength=" << attributes[i].attrLength << endl;
+         << "fieldCount=" << fieldCount << endl;
+    for (int i = 0; i < fieldCount; ++i) {
+        if (fields[i].attr.attrName != NULL) {
+            cout << "attributes[" << i << "].attrName=" << fields[i].attr.attrName
+                 << " attrType="
+                 << (fields[i].attr.attrType == INT ? "INT" :
+                     fields[i].attr.attrType == FLOAT ? "FLOAT" :
+                     fields[i].attr.attrType == DATE ? "DATE" : "STRING")
+                 << " attrLength=" << fields[i].attr.attrLength << endl;
+        }
     }
     return OK_RC;
 }
@@ -195,6 +383,27 @@ RC SM_Manager::DropTable(const char* relName) {
     }
     // success
     cout << "[DropTable]" << endl
+         << "relName=" << relName << endl;
+    return OK_RC;
+}
+
+RC SM_Manager::DescTable(const char* relName) {
+    RC rc;
+    // find all attributes of relation relName in attrcat
+    vector<AttrCat> attrs;
+    if ((rc = GetAttrs(relName, attrs))) {
+        return rc;
+    }
+    // print all attributes
+    for (auto attr : attrs) {
+        cout << attr.attrName << " "
+             << (attr.attrType == INT ? "INT" :
+                attr.attrType == FLOAT ? "FLOAT" :
+                attr.attrType == DATE ? "DATE" : "STRING") << " "
+             << attr.attrLength << endl;
+    }
+    // success
+    cout << "[DescTable]" << endl
          << "relName=" << relName << endl;
     return OK_RC;
 }

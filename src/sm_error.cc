@@ -23,7 +23,9 @@ static char* SM_WarnMsg[] = {
     (char*)"index not exist",
     (char*)"file not found",
     (char*)"relation already exist",
-    (char*)"error while loading"
+    (char*)"error while loading",
+    (char*)"a db is open",
+    (char*)"system error"
 };
 
 //

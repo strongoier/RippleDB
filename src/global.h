@@ -15,12 +15,9 @@ using std::pair;
 //
 // Globally-useful defines
 //
-#define MAXNAME       24                // maximum length of a relation
-                                        // or attribute name   + 1 ????
-#define MAXSTRINGLEN  255               // maximum length of a
-                                        // string-type attribute + 1 ????
-#define MAXATTRS      40                // maximum number of attributes
-                                        // in a relation
+#define MAXNAME       24                // maximum length of a relation or attribute name
+#define MAXSTRINGLEN  255               // maximum length of a string-type attribute
+#define MAXATTRS      40                // maximum number of attributes in a relation
 
 #define YY_SKIP_YYWRAP 1
 #define yywrap() 1
@@ -87,6 +84,7 @@ typedef char Boolean;
 enum AttrType {
     INT,
     FLOAT,
+    DATE,
     STRING
 };
 
