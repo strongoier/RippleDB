@@ -17,7 +17,11 @@
 // RelCat: Relation Catalog
 //
 struct RelCat {
-    static const int SIZE = MAXNAME + sizeof(int) + sizeof(int) + sizeof(int);
+    static const int RELNAME_OFFSET = 0;
+    static const int TUPLELENGTH_OFFSET = RELNAME_OFFSET + 1 + MAXNAME;
+    static const int ATTRCOUNT_OFFSET = TUPLELENGTH_OFFSET + 1 + sizeof(int);
+    static const int INDEXCOUNT_OFFSET = ATTRCOUNT_OFFSET + 1 + sizeof(int);
+    static const int SIZE = INDEXCOUNT_OFFSET + 1 + sizeof(int);
 
     char relName[MAXNAME]; // relation name
     int tupleLength; // tuple length in bytes
@@ -41,7 +45,17 @@ bool operator<(const RelCat& a, const RelCat& b);
 // AttrCat: Attribute Catalog
 //
 struct AttrCat {
-    static const int SIZE = MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int);
+    static const int RELNAME_OFFSET = 0;
+    static const int ATTRNAME_OFFSET = RELNAME_OFFSET + 1 + MAXNAME;
+    static const int OFFSET_OFFSET = ATTRNAME_OFFSET + 1 + MAXNAME;
+    static const int ATTRTYPE_OFFSET = OFFSET_OFFSET + 1 + sizeof(int);
+    static const int ATTRLENGTH_OFFSET = ATTRTYPE_OFFSET + 1 + sizeof(int);
+    static const int INDEXNO_OFFSET = ATTRLENGTH_OFFSET + 1 + sizeof(int);
+    static const int ISNOTNULL_OFFSET = INDEXNO_OFFSET + 1 + sizeof(int);
+    static const int PRIMARYKEY_OFFSET = ISNOTNULL_OFFSET + 1 + sizeof(int);
+    static const int REFREL_OFFSET = PRIMARYKEY_OFFSET + 1 + sizeof(int);
+    static const int REFATTR_OFFSET = REFREL_OFFSET + 1 + MAXNAME;
+    static const int SIZE = REFATTR_OFFSET + 1 + MAXNAME;
 
     char relName[MAXNAME]; // this attribute's relation
     char attrName[MAXNAME]; // attribute name
@@ -49,12 +63,16 @@ struct AttrCat {
     AttrType attrType; // attribute type
     int attrLength; // attribute length
     int indexNo; // index number, or -1 if not indexed
+    int isNotNull; // whether it is asked to be not null
+    int primaryKey; // primary key number
+    char refrel[MAXNAME]; // reference relation
+    char refattr[MAXNAME]; // reference attribute
 
     AttrCat() = default;
     // Construct from char* data.
     AttrCat(const char* recordData);
     // Construct from values.
-    AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo);
+    AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo, int isNotNull, int primaryKey, const char* refrel, const char* refattr);
 
     // Convert to char* data.
     void WriteRecordData(char* recordData);

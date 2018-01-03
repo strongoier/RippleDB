@@ -60,8 +60,6 @@ private:
     RC CheckRelExist(const char* relName, RM_Record& relCatRec);
     // Get all attrs relation relName in attrcat.
     RC GetAttrs(const char* relName, std::vector<AttrCat>& attrs);
-    // Load relation relName from file fileName.
-    RC Load(const char* relName, const char* fileName);
 
     IX_Manager& ixm; // internal IX_Manager
     RM_Manager& rmm; // internal RM_Manager

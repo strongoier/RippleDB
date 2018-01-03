@@ -7,10 +7,10 @@
 #include "sm.h"
 
 RelCat::RelCat(const char* recordData) {
-    strcpy(relName, recordData);
-    tupleLength = *(int*)(recordData + MAXNAME);
-    attrCount = *(int*)(recordData + MAXNAME + sizeof(int));
-    indexCount = *(int*)(recordData + MAXNAME + sizeof(int) + sizeof(int));
+    strcpy(relName, recordData + RELNAME_OFFSET + 1);
+    tupleLength = *(int*)(recordData + TUPLELENGTH_OFFSET + 1);
+    attrCount = *(int*)(recordData + ATTRCOUNT_OFFSET + 1);
+    indexCount = *(int*)(recordData + INDEXCOUNT_OFFSET + 1);
 }
 
 RelCat::RelCat(const char* relName, int tupleLength, int attrCount, int indexCount)
@@ -19,10 +19,11 @@ RelCat::RelCat(const char* relName, int tupleLength, int attrCount, int indexCou
 }
 
 void RelCat::WriteRecordData(char* recordData) {
-    Attr::SetAttr(recordData, STRING, &relName);
-    Attr::SetAttr(recordData + MAXNAME, INT, &tupleLength);
-    Attr::SetAttr(recordData + MAXNAME + sizeof(int), INT, &attrCount);
-    Attr::SetAttr(recordData + MAXNAME + sizeof(int) + sizeof(int), INT, &indexCount);
+    memset(recordData, 1, SIZE);
+    memcpy(recordData + RELNAME_OFFSET + 1, relName, MAXNAME);
+    memcpy(recordData + TUPLELENGTH_OFFSET + 1, &tupleLength, sizeof(int));
+    memcpy(recordData + ATTRCOUNT_OFFSET + 1, &attrCount, sizeof(int));
+    memcpy(recordData + INDEXCOUNT_OFFSET + 1, &indexCount, sizeof(int));
 }
 
 bool operator==(const RelCat& a, const RelCat& b) {
@@ -34,27 +35,38 @@ bool operator<(const RelCat& a, const RelCat& b) {
 }
 
 AttrCat::AttrCat(const char* recordData) {
-    strcpy(relName, recordData);
-    strcpy(attrName, recordData + MAXNAME);
-    offset = *(int*)(recordData + MAXNAME + MAXNAME);
-    attrType = (AttrType)*(int*)(recordData + MAXNAME + MAXNAME + sizeof(int));
-    attrLength = *(int*)(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int));
-    indexNo = *(int*)(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int));
+    strcpy(relName, recordData + RELNAME_OFFSET + 1);
+    strcpy(attrName, recordData + ATTRNAME_OFFSET + 1);
+    offset = *(int*)(recordData + OFFSET_OFFSET + 1);
+    attrType = (AttrType)*(int*)(recordData + ATTRTYPE_OFFSET + 1);
+    attrLength = *(int*)(recordData + ATTRLENGTH_OFFSET + 1);
+    indexNo = *(int*)(recordData + INDEXNO_OFFSET + 1);
+    isNotNull = *(int*)(recordData + ISNOTNULL_OFFSET + 1);
+    primaryKey = *(int*)(recordData + PRIMARYKEY_OFFSET + 1);
+    strcpy(refrel, recordData + REFREL_OFFSET + 1);
+    strcpy(refattr, recordData + REFATTR_OFFSET + 1);
 }
 
-AttrCat::AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo)
-    : offset(offset), attrType(attrType), attrLength(attrLength), indexNo(indexNo) {
+AttrCat::AttrCat(const char* relName, const char* attrName, int offset, AttrType attrType, int attrLength, int indexNo, int isNotNull, int primaryKey, const char* refrel, const char* refattr)
+    : offset(offset), attrType(attrType), attrLength(attrLength), indexNo(indexNo), isNotNull(isNotNull), primaryKey(primaryKey) {
     strcpy(this->relName, relName);
     strcpy(this->attrName, attrName);
+    strcpy(this->refrel, refrel);
+    strcpy(this->refattr, refattr);
 }
 
 void AttrCat::WriteRecordData(char* recordData) {
-    Attr::SetAttr(recordData, STRING, relName);
-    Attr::SetAttr(recordData + MAXNAME, STRING, &attrName);
-    Attr::SetAttr(recordData + MAXNAME + MAXNAME, INT, &offset);
-    Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int), INT, &attrType);
-    Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, &attrLength);
-    Attr::SetAttr(recordData + MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, &indexNo);
+    memset(recordData, 1, SIZE);
+    memcpy(recordData + RELNAME_OFFSET + 1, relName, MAXNAME);
+    memcpy(recordData + ATTRNAME_OFFSET + 1, attrName, MAXNAME);
+    memcpy(recordData + OFFSET_OFFSET + 1, &offset, sizeof(int));
+    memcpy(recordData + ATTRTYPE_OFFSET + 1, &attrType, sizeof(int));
+    memcpy(recordData + ATTRLENGTH_OFFSET + 1, &attrLength, sizeof(int));
+    memcpy(recordData + INDEXNO_OFFSET + 1, &indexNo, sizeof(int));
+    memcpy(recordData + ISNOTNULL_OFFSET + 1, &isNotNull, sizeof(int));
+    memcpy(recordData + PRIMARYKEY_OFFSET + 1, &primaryKey, sizeof(int));
+    memcpy(recordData + REFREL_OFFSET + 1, refrel, MAXNAME);
+    memcpy(recordData + REFATTR_OFFSET + 1, refattr, MAXNAME);
 }
 
 bool operator==(const AttrCat& a, const AttrCat& b) {

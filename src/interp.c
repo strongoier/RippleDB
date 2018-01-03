@@ -401,13 +401,19 @@ static void mk_value(NODE *node, Value &value) {
     value.type = node->u.VALUE.type;
     switch (value.type) {
         case INT:
-            value.data = (void *)&node->u.VALUE.ival;
+            value.data = new char[1 + sizeof(int)];
+            *(char*)value.data = 1;
+            *(int*)((char*)value.data + 1) = node->u.VALUE.ival;
             break;
         case FLOAT:
-            value.data = (void *)&node->u.VALUE.rval;
+            value.data = new char[1 + sizeof(float)];
+            *(char*)value.data = 1;
+            *(float*)((char*)value.data + 1) = node->u.VALUE.rval;
             break;
         case STRING:
-            value.data = (void *)node->u.VALUE.sval;
+            value.data = new char[2 + strlen(node->u.VALUE.sval)];
+            *(char*)value.data = 1;
+            strcpy((char*)value.data + 1, node->u.VALUE.sval);
             break;
     }
 }

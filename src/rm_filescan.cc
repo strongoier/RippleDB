@@ -26,7 +26,7 @@ RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int
         return RM_FILEHANDLECLOSED;
     }
     // check whether attr is valid
-    if (attrOffset < 0 || attrOffset + attrLength > fileHandle.fileHeader.recordSize) {
+    if (attrOffset < 0 || attrOffset + attrLength + 1 > fileHandle.fileHeader.recordSize) {
         return RM_ATTRINVALID;
     }
     if (!Attr::CheckAttrLengthValid(attrType, attrLength)) {

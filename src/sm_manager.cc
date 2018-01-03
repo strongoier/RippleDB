@@ -57,7 +57,7 @@ RC SM_Manager::CreateDb(const char* dbName) {
         return rc;
     }
     // add attrcat record in relcat
-    RelCat("attrcat", AttrCat::SIZE, 6, 0).WriteRecordData(recordData);
+    RelCat("attrcat", AttrCat::SIZE, 10, 0).WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
@@ -76,44 +76,60 @@ RC SM_Manager::CreateDb(const char* dbName) {
     }
     // add relcat attr records in attrcat
     recordData = new char[AttrCat::SIZE];
-    AttrCat("relcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("relcat", "relName", RelCat::RELNAME_OFFSET, STRING, MAXNAME, -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("relcat", "tupleLength", MAXNAME, INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "tupleLength", RelCat::TUPLELENGTH_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("relcat", "attrCount", MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "attrCount", RelCat::ATTRCOUNT_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("relcat", "indexCount", MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("relcat", "indexCount", RelCat::INDEXCOUNT_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
     // add attrcat attr records in attrcat
-    AttrCat("attrcat", "relName", 0, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "relName", AttrCat::RELNAME_OFFSET, STRING, MAXNAME, -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("attrcat", "attrName", MAXNAME, STRING, MAXNAME, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrName", AttrCat::ATTRNAME_OFFSET, STRING, MAXNAME, -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("attrcat", "offset", MAXNAME + MAXNAME, INT, 4, -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "offset", AttrCat::OFFSET_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("attrcat", "attrType", MAXNAME + MAXNAME + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrType", AttrCat::ATTRTYPE_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("attrcat", "attrLength", MAXNAME + MAXNAME + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "attrLength", AttrCat::ATTRLENGTH_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
-    AttrCat("attrcat", "indexNo", MAXNAME + MAXNAME + sizeof(int) + sizeof(int) + sizeof(int), INT, sizeof(int), -1).WriteRecordData(recordData);
+    AttrCat("attrcat", "indexNo", AttrCat::INDEXNO_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "isNotNull", AttrCat::ISNOTNULL_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "primaryKey", AttrCat::PRIMARYKEY_OFFSET, INT, sizeof(int), -1, 1, 0, "", "").WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "refrel", AttrCat::REFREL_OFFSET, STRING, MAXNAME, -1, 1, 0, "", "").WriteRecordData(recordData);
+    if ((rc = fileHandle.InsertRec(recordData, rid))) {
+        return rc;
+    }
+    AttrCat("attrcat", "refattr", AttrCat::REFATTR_OFFSET, STRING, MAXNAME, -1, 1, 0, "", "").WriteRecordData(recordData);
     if ((rc = fileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
@@ -280,7 +296,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     int attrCount = 0;
     for (int i = 0; i < fieldCount; ++i) {
         if (fields[i].attr.attrName != NULL) {
-            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1).WriteRecordData(recordData);
+            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1, 1, 0, "", "").WriteRecordData(recordData);
             if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
                 return rc;
             }
@@ -362,6 +378,9 @@ RC SM_Manager::DropTable(const char* relName) {
         // remove index for attr
         AttrCat attrCat(attrCatData);
         if (attrCat.indexNo != -1 && (rc = ixm.DestroyIndex(relName, attrCat.indexNo))) {
+            return rc;
+        }
+        if (attrCat.indexNo != -1 && (rc = ixm.DestroyIndex(relName, attrCat.indexNo + 1))) {
             return rc;
         }
         // remove attr in attrcat
@@ -594,89 +613,6 @@ RC SM_Manager::DropIndex(const char* relName, const char* attrName) {
     cout << "[DropIndex]" << endl
          << "relName=" << relName << endl
          << "attrName=" << attrName << endl;
-    return OK_RC;
-}
-
-RC SM_Manager::Load(const char* relName, const char* fileName) {
-    RC rc;
-    // check whether a db is open
-    if (!isOpen) {
-        return SM_DBNOTOPEN;
-    }
-    // check whether file exists
-    FILE* fin = fopen(fileName, "r");
-    if (fin == NULL) {
-        return SM_FILENOTFOUND;
-    }
-    // find relation relName in relcat
-    RM_Record relCatRec;
-    if ((rc = CheckRelExist(relName, relCatRec))) {
-        return rc;
-    }
-    // find all attributes of relation relName in attrcat
-    vector<AttrCat> attrs;
-    if ((rc = GetAttrs(relName, attrs))) {
-        return rc;
-    }
-    // read data from file && insert record into relation
-    RM_FileHandle relFileHandle;
-    if ((rc = rmm.OpenFile(relName, relFileHandle))) {
-        return rc;
-    }
-    char buf[MAXATTRS * (MAXSTRINGLEN + 1)];
-    char recordData[MAXATTRS * MAXSTRINGLEN];
-    while (fgets(buf, MAXATTRS * (MAXSTRINGLEN + 1), fin) != NULL) {
-        int attrid = 0;
-        for (int i = 0, last = 0; ; ++i) {
-            if (buf[i] == ',' || buf[i] == 0) {
-                if (attrid == (int)attrs.size()) {
-                    return SM_LOADERROR;
-                }
-                char value[MAXSTRINGLEN];
-                switch (attrs[attrid].attrType) {
-                    case INT:
-                        if (sscanf(buf + last, "%d", (int*)&value) != 1) {
-                            return SM_LOADERROR;
-                        }
-                        break;
-                    case FLOAT:
-                        if (sscanf(buf + last, "%f", (float*)&value) != 1) {
-                            return SM_LOADERROR;
-                        }
-                        break;
-                    case STRING:
-                        if (i - last >= attrs[attrid].attrLength) {
-                            return SM_LOADERROR;
-                        }
-                        strncpy(value, buf + last, i - last);
-                        value[i - last] = 0;
-                        break;
-                }
-                Attr::SetAttr(recordData + attrs[attrid].offset, attrs[attrid].attrType, &value);
-                last = i + 1;
-                ++attrid;
-                if (buf[i] == 0) {
-                    break;
-                }
-            }
-        }
-        if (attrid < (int)attrs.size()) {
-            return SM_LOADERROR;
-        }
-        // a record ok
-        RID rid;
-        if ((rc = relFileHandle.InsertRec(recordData, rid))) {
-            return rc;
-        }
-    }
-    if ((rc = rmm.CloseFile(relFileHandle))) {
-        return rc;
-    }
-    fclose(fin);
-    // success
-    cout << "[Load]" << endl
-         << "relName=" << relName << endl
-         << "fileName=" << fileName << endl;
     return OK_RC;
 }
 
