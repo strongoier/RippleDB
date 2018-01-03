@@ -296,11 +296,11 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     int attrCount = 0;
     for (int i = 0; i < fieldCount; ++i) {
         if (fields[i].attr.attrName != NULL) {
-            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1, 1, 0, "", "").WriteRecordData(recordData);
+            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1, fields[i].isNotNull, 0, "", "").WriteRecordData(recordData);
             if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
                 return rc;
             }
-            recordSize += fields[i].attr.attrLength;
+            recordSize += 1 + fields[i].attr.attrLength;
             ++attrCount;
         }
     }

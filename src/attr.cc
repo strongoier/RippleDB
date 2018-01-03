@@ -9,8 +9,8 @@
 using namespace std;
 
 bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    valueA = valueA + 1;
-    valueB = valueB + 1;
+    valueA = (char*)valueA + 1;
+    valueB = (char*)valueB + 1;
     const RID& ridA = *(RID*)((char*)valueA + attrLength);
     const RID& ridB = *(RID*)((char*)valueB + attrLength);
     switch (attrType) {
@@ -63,17 +63,17 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
                 case NO_OP:
                     return true;
                 case EQ_OP:
-                    return strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA == ridB;
+                    return strcmp((char *) valueA, (char *) valueB) == 0 && ridA == ridB;
                 case NE_OP:
-                    return !(strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA == ridB);
+                    return !(strcmp((char *) valueA, (char *) valueB) == 0 && ridA == ridB);
                 case LT_OP:
-                    return strncmp((char *) valueA, (char *) valueB, attrLength) < 0 || (strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA < ridB);
+                    return strcmp((char *) valueA, (char *) valueB) < 0 || (strcmp((char *) valueA, (char *) valueB) == 0 && ridA < ridB);
                 case GT_OP:
-                    return strncmp((char *) valueA, (char *) valueB, attrLength) > 0 || (strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA > ridB);
+                    return strcmp((char *) valueA, (char *) valueB) > 0 || (strcmp((char *) valueA, (char *) valueB) == 0 && ridA > ridB);
                 case LE_OP:
-                    return !(strncmp((char *) valueA, (char *) valueB, attrLength) > 0 || (strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA > ridB));
+                    return !(strcmp((char *) valueA, (char *) valueB) > 0 || (strcmp((char *) valueA, (char *) valueB) == 0 && ridA > ridB));
                 case GE_OP:
-                    return !(strncmp((char *) valueA, (char *) valueB, attrLength) < 0 || (strncmp((char *) valueA, (char *) valueB, attrLength) == 0 && ridA < ridB));
+                    return !(strcmp((char *) valueA, (char *) valueB) < 0 || (strcmp((char *) valueA, (char *) valueB) == 0 && ridA < ridB));
             }
             break;
         }
@@ -99,8 +99,8 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
 }*/
 
 bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    valueA = valueA + 1;
-    valueB = valueB + 1;
+    valueA = (char*)valueA + 1;
+    valueB = (char*)valueB + 1;
     switch (attrType) {
         case DATE:
         case INT:
@@ -145,17 +145,17 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
                 case NO_OP:
                     return true;
                 case EQ_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) == 0;
+                    return strcmp((char*)valueA, (char*)valueB) == 0;
                 case NE_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) != 0;
+                    return strcmp((char*)valueA, (char*)valueB) != 0;
                 case LT_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) < 0;
+                    return strcmp((char*)valueA, (char*)valueB) < 0;
                 case GT_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) > 0;
+                    return strcmp((char*)valueA, (char*)valueB) > 0;
                 case LE_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) <= 0;
+                    return strcmp((char*)valueA, (char*)valueB) <= 0;
                 case GE_OP:
-                    return strncmp((char*)valueA, (char*)valueB, attrLength) >= 0;
+                    return strcmp((char*)valueA, (char*)valueB) >= 0;
             }
             break;
     }
@@ -164,6 +164,7 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
 
 int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
     int half, middle, begin = 0;
+    int attrLengthWithRID = attrLength + sizeof(RID) + 1;
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;
@@ -179,7 +180,7 @@ int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, c
 
 int Attr::lower_boundWithRID(AttrType attrType, int attrLength, char *first, int len, char *value) {
     int half, middle, begin = 0;
-    int attrLengthWithRID = attrLength + sizeof(RID);
+    int attrLengthWithRID = attrLength + sizeof(RID) + 1;
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;
@@ -195,6 +196,7 @@ int Attr::lower_boundWithRID(AttrType attrType, int attrLength, char *first, int
 
 int Attr::upper_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
     int half, middle, begin = 0;
+    int attrLengthWithRID = attrLength + sizeof(RID) + 1;
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;
@@ -210,7 +212,7 @@ int Attr::upper_bound(AttrType attrType, int attrLength, char* first, int len, c
 
 int Attr::upper_boundWithRID(AttrType attrType, int attrLength, char* first, int len, char* value) {
     int half, middle, begin = 0;
-    int attrLengthWithRID = attrLength + sizeof(RID);
+    int attrLengthWithRID = attrLength + sizeof(RID) + 1;
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;

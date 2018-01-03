@@ -274,6 +274,12 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
             for (; primaryKey != NULL; primaryKey = primaryKey -> u.LIST.next)
                 fields[i].primaryKeyList[fields[i].nPrimaryKey++] = primaryKey -> u.LIST.curr -> u.ATTR.attrname;
         } else {
+            if (strlen(attr -> u.FIELD.foreignKey) > MAXNAME)
+                return E_TOOLONG;
+            for (j = 0; j < nameCount; ++j)
+                if (!strcmp(names[j], field -> u.FIELD.foreignKey))
+                    return E_DUPLICATEATTR;
+            names[nameCount++] = field -> u.FIELD.foreignKey;
             fields[i].foreignKey = field -> u.FIELD.foreignKey;
             fields[i].refRel = field -> u.FIELD.refRel;
             fields[i].refAttr = field -> u.FIELD.refAttr;

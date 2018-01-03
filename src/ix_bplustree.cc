@@ -56,15 +56,15 @@ char* NodeHeader::endKey() {
 }
 
 RID* NodeHeader::rid(int index) {
-	return (RID*)(key(index) + tree->attrLength);
+	return (RID*)(key(index) + tree->attrLength + 1);
 }
 
 RID* NodeHeader::lastRid() {
-	return (RID*)(lastKey() + tree->attrLength);
+	return (RID*)(lastKey() + tree->attrLength + 1);
 }
 
 RID* NodeHeader::endRid() {
-	return (RID*)(endKey() + tree->attrLength);
+	return (RID*)(endKey() + tree->attrLength + 1);
 }
 
 PageNum* NodeHeader::page(int index) {
@@ -706,14 +706,14 @@ RC TreeHeader::Insert(char *pData) {
 RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index) {
 	RC rc;
 
-	if (compOp == NO_OP) {
+	/*if (compOp == NO_OP) {
 		if ((rc = GetFirstLeafNode(leaf)))
 			IX_PRINTSTACK
 		index = 0;
 		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	}
+	}*/
 	
 	if (compOp == EQ_OP) {
 		NodeHeader *root;
@@ -729,7 +729,7 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		return OK_RC;
 	}
 	
-	if (compOp == NE_OP) {
+	/*if (compOp == NE_OP) {
 		if ((rc = GetFirstLeafNode(leaf)))
 			IX_PRINTSTACK
 		index = 0;
@@ -758,7 +758,7 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		if (!IsValidScanResult(pData, compOp, leaf, index))
 			leaf = nullptr;
 		return OK_RC;
-	}
+	}*/
 	
 	if (compOp == LT_OP) {
 		if ((rc = GetFirstLeafNode(leaf)))
@@ -847,7 +847,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 	++index;
 	if (IsValidScanResult(pData, compOp, cur, index))
 		return OK_RC;
-	if (compOp != NE_OP || gt) {
+	//if (compOp != NE_OP || gt) {
 		if (index != cur->childNum || !cur->HaveNextPage()) {
 			cur = nullptr;
 			return OK_RC;
@@ -859,7 +859,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 		if (!IsValidScanResult(pData, compOp, cur, index))
 			cur = nullptr;
 		return OK_RC;
-	} else {
+	/*} else {
 		if (index != cur->childNum || !cur->HaveNextPage()) {
 			NodeHeader *root;
 			if ((rc = GetPageData(rootPNum, root)))
@@ -891,7 +891,7 @@ RC TreeHeader::GetNextEntry(char *pData, CompOp compOp, NodeHeader *&cur, int &i
 		if (!IsValidScanResult(pData, compOp, cur, index))
 			cur = nullptr;
 		return OK_RC;
-	}
+	}*/
 	return OK_RC;
 }
 
@@ -977,19 +977,19 @@ bool TreeHeader::IsValidScanResult(char *pData, CompOp compOp, NodeHeader *cur, 
 
 void TreeHeader::appendMaxRID(char *pData) {
 	static RID maxRID(numeric_limits<int>::max(), numeric_limits<int>::max());
-	memmove(pData + attrLength, &maxRID, sizeof(RID));
+	memmove(pData + attrLength + 1, &maxRID, sizeof(RID));
 }
 
 void TreeHeader::appendMinRID(char *pData) {
 	static RID minRID(-1, -1);
-	memmove(pData + attrLength, &minRID, sizeof(RID));
+	memmove(pData + attrLength + 1, &minRID, sizeof(RID));
 }
 
 RC TreeHeader::DisplayAllTree() {
 	RC rc;
 	int depth = 0;
-    char leftBuffer[PF_PAGE_SIZE];
-    char curBuffer[PF_PAGE_SIZE];
+  char leftBuffer[PF_PAGE_SIZE];
+  char curBuffer[PF_PAGE_SIZE];
 	NodeHeader *left = nullptr;
 	if ((rc = GetPageData(rootPNum, left)))
 		IX_PRINTSTACK
@@ -1000,17 +1000,17 @@ RC TreeHeader::DisplayAllTree() {
 		NodeHeader* cur = (NodeHeader*)leftBuffer;
 		while (true) {
 			printf("\nnew page  %d\n\nprev page  %d  next  page  %d\n\n", cur->selfPNum, cur->prevPNum, cur->nextPNum);
-            int maxC = cur->nodeType == LeafNode ? cur->childNum : cur->childNum - 1;
+      int maxC = cur->nodeType == LeafNode ? cur->childNum : cur->childNum - 1;
 			for (int i = 0; i < maxC; ++i) {
-                if (cur->nodeType == InternalNode)
-				    printf("page: %d\n", *(cur->page(i)));
+        if (cur->nodeType == InternalNode)
+				printf("page: %d\n", *(cur->page(i)));
 				PageNum pageNum;
 				SlotNum slotNum;
 				if ((rc = cur->rid(i)->GetPageNum(pageNum)) || (rc = cur->rid(i)->GetSlotNum(slotNum))) IX_PRINTSTACK
 				printf("key: %d, rid: ( %d, %d )\n", *(int*)(cur->key(i)), pageNum, slotNum);
 			}
-            if (cur->nodeType == InternalNode)
-			    printf("page: %d\n", *(cur->page(cur->childNum - 1)));
+      if (cur->nodeType == InternalNode)
+			  printf("page: %d\n", *(cur->page(cur->childNum - 1)));
 			if (!cur->HaveNextPage())
 				break;
 			if ((rc = cur->NextPage(cur)))
