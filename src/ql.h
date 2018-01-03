@@ -88,6 +88,11 @@ private:
     RC GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds);
 
     //
+    // 在完整单表限制条件集合中获取最适合扫描的索引项
+    //
+    unsigned int GetBestIndex(const std::vector<FullCondition>& fullConditions);
+
+    //
     // 利用单表限制条件集合在某个数据表中提取满足条件的 RID 集合（尽可能使用索引加速）
     //
     RC GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<RID>& rids);

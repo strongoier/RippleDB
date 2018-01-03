@@ -726,16 +726,38 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
 }
 
 //
+// 将比较操作符转换为优先级
+//
+int ToLevel(CompOp op) {
+    switch (op) {
+        case EQ_OP:
+            return 0;
+        case LT_OP:
+        case GT_OP:
+        case LE_OP:
+        case GE_OP:
+            return 1;
+        case NE_OP:
+            return 2;
+        case NO_OP:
+            return 2;
+        default:
+            return 2;
+    }
+}
+
+//
 // 利用单表限制集合在某个数据表中提取满足条件的 RID 集合（尽可能使用索引加速）
 //
 RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<RID>& rids) {
     RC rc;
     // 查找出带有索引的属性值
     int index = -1;
+    int indexLevel = 2;
     for (unsigned int i = 0; i < fullConditions.size(); ++i) {
-        if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0) {
+        if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0 && ToLevel(fullConditions[i].op) < indexLevel) {
             index = i;
-            break;
+            indexLevel = ToLevel(fullConditions[i].op);
         }
     }
     if (index == -1) {
@@ -815,13 +837,14 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
     RC rc;
     // 查找出带有索引的属性值
     int index = -1;
+    int indexLevel = 2;
     for (unsigned int i = 0; i < fullConditions.size(); ++i) {
-        if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0) {
+        if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0 && ToLevel(fullConditions[i].op) < indexLevel) {
             index = i;
-            break;
+            indexLevel = ToLevel(fullConditions[i].op);
         }
     }
-    if (index == -1) {
+    if (indexLevel == -1) {
         // 如果没有属性带有索引，使用记录文件暴力扫描
         RM_FileScan rmFileScan;
         if ((rc = rmFileScan.OpenScan(rmFileHandle, fullConditions))) {
