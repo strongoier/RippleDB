@@ -20,7 +20,7 @@ RC IX_IndexScan::OpenScan(const IX_IndexHandle &indexHandle, CompOp compOp, void
 
 	tree = indexHandle.treeHeader;
 	if (compOp != NO_OP) {
-		memcpy(pData, value, tree->attrLength);
+		memcpy(pData, value, tree->attrLength + 1);
 	}
 	op = compOp;
 
