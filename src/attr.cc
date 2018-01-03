@@ -8,34 +8,13 @@
 #include <cstring>
 using namespace std;
 
-bool Attr::CheckAttrLengthValid(AttrType attrType, int attrLength) {
-    switch (attrType) {
-        case INT:
-            if (attrLength != sizeof(int)) {
-                return false;
-            }
-            break;
-        case FLOAT:
-            if (attrLength != sizeof(float)) {
-                return false;
-            }
-            break;
-        case STRING:
-            if (attrLength <= 0 || attrLength > MAXSTRINGLEN) {
-                return false;
-            }
-            break;
-    }
-    return true;
-}
-
 bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    if (valueB == NULL) {
-        return true;
-    }
+    valueA = valueA + 1;
+    valueB = valueB + 1;
     const RID& ridA = *(RID*)((char*)valueA + attrLength);
     const RID& ridB = *(RID*)((char*)valueB + attrLength);
     switch (attrType) {
+        case DATE:
         case INT: {
             const int& intA = *(int*)valueA;
             const int& intB = *(int*)valueB;
@@ -78,6 +57,7 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
             }
             break;
         }
+        case PRIMARYKEY:
         case STRING: {
             switch (compOp) {
                 case NO_OP:
@@ -101,25 +81,28 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
     return true;
 }
 
-void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+/*void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+    *destination = *(char*)value;
     switch (attrType) {
+        case DATE:
         case INT:
-            *(int*)destination = *(int*)value;
+            *(int*)(destination + 1) = *(int*)(value + 1);
             break;
         case FLOAT:
-            *(float*)destination = *(float*)value;
+            *(float*)(destination + 1) = *(float*)(value + 1);
             break;
+        case PRIMARYKEY:
         case STRING:
-            strcpy(destination, (const char*)value);
+            strcpy(destination + 1, (const char*)(value + 1));
             break;
     }
-}
+}*/
 
 bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    if (valueB == NULL) {
-        return true;
-    }
+    valueA = valueA + 1;
+    valueB = valueB + 1;
     switch (attrType) {
+        case DATE:
         case INT:
             switch (compOp) {
                 case NO_OP:
@@ -156,6 +139,7 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
                     return *(float*)valueA >= *(float*)valueB;
             }
             break;
+        case PRIMARYKEY:
         case STRING:
             switch (compOp) {
                 case NO_OP:
@@ -183,7 +167,7 @@ int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, c
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;
-        if (CompareAttr(attrType, attrLength, first + middle * attrLength, LT_OP, value)) {
+        if (CompareAttr(attrType, attrLength, first + middle * attrLengthWithRID, LT_OP, value)) {
             begin = middle + 1;
             len = len - half - 1;
         }  
@@ -214,7 +198,7 @@ int Attr::upper_bound(AttrType attrType, int attrLength, char* first, int len, c
     while (len > 0) {
         half = len >> 1;
         middle = begin + half;
-        if (CompareAttr(attrType, attrLength, value, LT_OP, first + middle * attrLength))
+        if (CompareAttr(attrType, attrLength, value, LT_OP, first + middle * attrLengthWithRID))
             len = half;
         else {
             begin = middle + 1;

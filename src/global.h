@@ -84,8 +84,9 @@ typedef char Boolean;
 enum AttrType {
     INT,
     FLOAT,
-    DATE,
-    STRING
+    STRING,
+    PRIMARYKEY,
+    DATE
 };
 
 //
@@ -96,12 +97,14 @@ enum CompOp {
     EQ_OP, NE_OP, LT_OP, GT_OP, LE_OP, GE_OP // binary atomic operators
 };
 
+int ToLevel(CompOp op);
+// EQ < LT = GT = LE = GE < NE < NO
+
 //
 // Attr: Class for operating attributes
 //
 class Attr {
 public:
-    static bool CheckAttrLengthValid(AttrType attrType, int attrLength);
     static void DeleteValue(AttrType attrType, void* value);
     static void SetAttr(char* destination, AttrType attrType, void* value);
     static bool CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);

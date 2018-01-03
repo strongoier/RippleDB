@@ -18,9 +18,6 @@ IX_Manager::~IX_Manager() {}
 RC IX_Manager::CreateIndex(const char *fileName, int indexNo, AttrType attrType, int attrLength) {
     RC rc;
 
-    if (!Attr::CheckAttrLengthValid(attrType, attrLength))
-        IX_ERROR(IX_LENGTHNOTVALID)
-
     char *file = generateIndexFileName(fileName, indexNo);
     if ((rc = PFMgr.CreateFile(file)))
         IX_ERROR(rc)

@@ -29,9 +29,6 @@ RC RM_FileScan::OpenScan(const RM_FileHandle& fileHandle, AttrType attrType, int
     if (attrOffset < 0 || attrOffset + attrLength + 1 > fileHandle.fileHeader.recordSize) {
         return RM_ATTRINVALID;
     }
-    if (!Attr::CheckAttrLengthValid(attrType, attrLength)) {
-        return RM_ATTRINVALID;
-    }
     // copy the parameters
     this->fileHeader = fileHandle.fileHeader;
     this->pfFileHandle = fileHandle.pfFileHandle;
@@ -121,10 +118,22 @@ RC RM_FileScan::GetNextRec(RM_Record& rec) {
         if (pData[sizeof(PageNum) + slotNum / 8] & (1 << (slotNum & 7))) {
             bool satisfy = true;
             if (isOpen == RM_SCANSTATUS_SINGLE) {
-                satisfy = Attr::CompareAttr(attrType, attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset, compOp, value);
+                if (*(char*)value == 0) {
+                    satisfy = *(pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset) == (compOp == NE_OP);
+                } else {
+                    satisfy = Attr::CompareAttr(attrType, attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + attrOffset, compOp, value);
+                }
             } else if (isOpen == RM_SCANSTATUS_MULTIPLE) {
                 for (unsigned int i = 0; satisfy && i < conditions.size(); ++i) {
-                    satisfy = satisfy && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset, conditions[i].op, conditions[i].bRhsIsAttr ? pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].rhsAttr.offset : conditions[i].rhsValue.data);
+                    if (conditions[i].bRhsIsAttr) {
+                        satisfy = satisfy && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset, conditions[i].op, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].rhsAttr.offset);
+                    } else {
+                        if (*(char*)conditions[i].rhsValue.data == 0) {
+                            satisfy = satisfy && *(pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset) == (conditions[i].op == NE_OP);
+                        } else {
+                            satisfy = satisfy && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, pData + sizeof(PageNum) + fileHeader.bitmapSize + slotNum * fileHeader.recordSize + conditions[i].lhsAttr.offset, conditions[i].op, conditions[i].rhsValue.data);
+                        }
+                    }
                 }
             }
             if (satisfy) {
