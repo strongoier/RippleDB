@@ -9,9 +9,8 @@
 using namespace std;
 
 bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    if (valueB == NULL) {
-        return true;
-    }
+    valueA = valueA + 1;
+    valueB = valueB + 1;
     const RID& ridA = *(RID*)((char*)valueA + attrLength);
     const RID& ridB = *(RID*)((char*)valueB + attrLength);
     switch (attrType) {
@@ -82,26 +81,26 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
     return true;
 }
 
-void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+/*void Attr::SetAttr(char* destination, AttrType attrType, void* value) {
+    *destination = *(char*)value;
     switch (attrType) {
         case DATE:
         case INT:
-            *(int*)destination = *(int*)value;
+            *(int*)(destination + 1) = *(int*)(value + 1);
             break;
         case FLOAT:
-            *(float*)destination = *(float*)value;
+            *(float*)(destination + 1) = *(float*)(value + 1);
             break;
         case PRIMARYKEY:
         case STRING:
-            strcpy(destination, (const char*)value);
+            strcpy(destination + 1, (const char*)(value + 1));
             break;
     }
-}
+}*/
 
 bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB) {
-    if (valueB == NULL) {
-        return true;
-    }
+    valueA = valueA + 1;
+    valueB = valueB + 1;
     switch (attrType) {
         case DATE:
         case INT:

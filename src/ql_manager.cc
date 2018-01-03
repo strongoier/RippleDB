@@ -1033,7 +1033,3 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
     }
     return OK_RC;
 }
-
-void QL_PrintError(RC rc) {
-    cout << "QL_PrintError\n   rc=" << rc << "\n";
-}
