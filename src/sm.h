@@ -73,16 +73,18 @@ private:
 //
 void SM_PrintError(RC rc);
 
-#define SM_DBNOTOPEN     (START_SM_WARN + 0)  // no db is open
-#define SM_DBNOTEXIST    (START_SM_WARN + 1)  // db not exist
-#define SM_RELNOTFOUND   (START_SM_WARN + 2)  // relation not found
-#define SM_ATTRNOTFOUND  (START_SM_WARN + 3)  // attribute not found
-#define SM_INDEXEXIST    (START_SM_WARN + 4)  // index already exist
-#define SM_INDEXNOTEXIST (START_SM_WARN + 5)  // index not exist
-#define SM_FILENOTFOUND  (START_SM_WARN + 6)  // file not found
-#define SM_RELEXIST      (START_SM_WARN + 7)  // relation already exist
-#define SM_LOADERROR     (START_SM_WARN + 8)  // error while loading
-#define SM_DBISOPEN      (START_SM_WARN + 9)  // a db is open
-#define SM_SYSERROR      (START_SM_WARN + 10) // system error
+#define SM_DBNOTOPEN       (START_SM_WARN + 0)  // no db is open
+#define SM_DBNOTEXIST      (START_SM_WARN + 1)  // db not exist
+#define SM_RELNOTFOUND     (START_SM_WARN + 2)  // relation not found
+#define SM_ATTRNOTFOUND    (START_SM_WARN + 3)  // attribute not found
+#define SM_INDEXEXIST      (START_SM_WARN + 4)  // index already exist
+#define SM_INDEXNOTEXIST   (START_SM_WARN + 5)  // index not exist
+#define SM_FILENOTFOUND    (START_SM_WARN + 6)  // file not found
+#define SM_RELEXIST        (START_SM_WARN + 7)  // relation already exist
+#define SM_LOADERROR       (START_SM_WARN + 8)  // error while loading
+#define SM_DBISOPEN        (START_SM_WARN + 9)  // a db is open
+#define SM_SYSERROR        (START_SM_WARN + 10) // system error
+#define SM_INDEXPRIMARYKEY (START_SM_WARN + 11) // index is for primary key
+#define SM_ATTRNOTMATCH    (START_SM_WARN + 12) // attr not match
 
 #endif

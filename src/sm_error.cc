@@ -25,7 +25,9 @@ static char* SM_WarnMsg[] = {
     (char*)"relation already exist",
     (char*)"error while loading",
     (char*)"a db is open",
-    (char*)"system error"
+    (char*)"system error",
+    (char*)"index is for primary key",
+    (char*)"attr not match"
 };
 
 //

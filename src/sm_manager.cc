@@ -293,15 +293,84 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     char* recordData = new char[AttrCat::SIZE];
     RID rid;
     int recordSize = 0;
-    int attrCount = 0;
+    int indexCount = 0;
+    vector<AttrCat> attrs;
     for (int i = 0; i < fieldCount; ++i) {
-        if (fields[i].attr.attrName != NULL) {
-            AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1, fields[i].isNotNull, 0, "", "").WriteRecordData(recordData);
-            if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
-                return rc;
-            }
+        if (fields[i].attr.attrName != NULL) { // new attribute
+            attrs.push_back(AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1, fields[i].isNotNull, 0, "", ""));
             recordSize += 1 + fields[i].attr.attrLength;
-            ++attrCount;
+        } else if (fields[i].nPrimaryKey > 0) { // primary key
+            if (fields[i].nPrimaryKey > 1) {
+                // calc total length of primary keys
+                int len = 0;
+                for (int j = 0; j < fields[i].nPrimaryKey; ++j) {
+                    for (auto attr : attrs) {
+                        if (!strcmp(attr.attrName, fields[i].primaryKeyList[j])) {
+                            len += attr.attrLength;
+                        }
+                    }
+                }
+                // create index for primary keys
+                ++indexCount;
+                if ((rc = ixm.CreateIndex(relName, 0, STRING, len))) {
+                    return rc;
+                }
+            }
+            // create index for single primary key
+            int count = 0;
+            for (int j = 0; j < fields[i].nPrimaryKey; ++j) {
+                for (int k = 0; k < attrs.size(); ++k) {
+                    if (!strcmp(attrs[k].attrName, fields[i].primaryKeyList[j])) {
+                        attrs[k].primaryKey = ++count;
+                        attrs[k].indexNo = indexCount;
+                        indexCount += 2;
+                        if ((rc = ixm.CreateIndex(relName, attrs[k].indexNo, attrs[k].attrType, attrs[k].attrLength))) {
+                            return rc;
+                        }
+                        if ((rc = ixm.CreateIndex(relName, attrs[k].indexNo + 1, attrs[k].attrType, attrs[k].attrLength))) {
+                            return rc;
+                        }
+                    }
+                }
+            }
+        } else { // foreign key
+            for (int j = 0; j < attrs.size(); ++j) {
+                if (!strcmp(attrs[j].attrName, fields[i].foreignKey)) {
+                    strcpy(attrs[j].refrel, fields[i].refRel);
+                    strcpy(attrs[j].refattr, fields[i].refAttr);
+                    // find relation refrel in relcat
+                    RM_Record relCatRec;
+                    if ((rc = CheckRelExist(attrs[j].refrel, relCatRec))) {
+                        return rc;
+                    }
+                    // get all attributes of refrel
+                    vector<AttrCat> refrelAttrs;
+                    if ((rc = GetAttrs(attrs[j].refrel, refrelAttrs))) {
+                        return rc;
+                    }
+                    // search for refattr
+                    bool found = false;
+                    for (auto attr : refrelAttrs) {
+                        if (!strcmp(attr.attrName, attrs[j].refattr)) {
+                            found = true;
+                            if (attr.attrType != attrs[j].attrType || attr.attrLength != attrs[j].attrLength) {
+                                return SM_ATTRNOTMATCH;
+                            }
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        return SM_ATTRNOTFOUND;
+                    }
+                    break;
+                }
+            }
+        }    
+    }
+    for (auto attr : attrs) {
+        attr.WriteRecordData(recordData);
+        if ((rc = attrcatFileHandle.InsertRec(recordData, rid))) {
+            return rc;
         }
     }
     if ((rc = attrcatFileHandle.ForcePages())) {
@@ -310,7 +379,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     delete[] recordData;
     // update relcat
     recordData = new char[RelCat::SIZE];
-    RelCat(relName, recordSize, attrCount, 0).WriteRecordData(recordData);
+    RelCat(relName, recordSize, attrs.size(), 0).WriteRecordData(recordData);
     if ((rc = relcatFileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
@@ -325,16 +394,21 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     // success
     cout << "[CreateTable]" << endl
          << "relName=" << relName << endl
-         << "fieldCount=" << fieldCount << endl;
-    for (int i = 0; i < fieldCount; ++i) {
-        if (fields[i].attr.attrName != NULL) {
-            cout << "attributes[" << i << "].attrName=" << fields[i].attr.attrName
-                 << " attrType="
-                 << (fields[i].attr.attrType == INT ? "INT" :
-                     fields[i].attr.attrType == FLOAT ? "FLOAT" :
-                     fields[i].attr.attrType == DATE ? "DATE" : "STRING")
-                 << " attrLength=" << fields[i].attr.attrLength << endl;
+         << "fieldCount=" << fieldCount << endl
+         << "attributes=" << endl;
+    for (auto attr : attrs) {
+        cout << attr.attrName
+             << " " << (attr.attrType == INT ? "INT" :
+                        attr.attrType == FLOAT ? "FLOAT" :
+                        attr.attrType == DATE ? "DATE" : "STRING")
+             << " " << attr.attrLength;
+        if (attr.primaryKey > 0) {
+            cout << " PRIMARY KEY";
         }
+        if (attr.refrel[0]) {
+            cout << " FOREIGN KEY REFERENCES " << attr.refrel << "(" << attr.refattr << ")";
+        }
+        cout << endl;
     }
     return OK_RC;
 }
@@ -428,11 +502,18 @@ RC SM_Manager::DescTable(const char* relName) {
     }
     // print all attributes
     for (auto attr : attrs) {
-        cout << attr.attrName << " "
-             << (attr.attrType == INT ? "INT" :
-                attr.attrType == FLOAT ? "FLOAT" :
-                attr.attrType == DATE ? "DATE" : "STRING") << " "
-             << attr.attrLength << endl;
+        cout << attr.attrName
+             << " " << (attr.attrType == INT ? "INT" :
+                        attr.attrType == FLOAT ? "FLOAT" :
+                        attr.attrType == DATE ? "DATE" : "STRING")
+             << " " << attr.attrLength;
+        if (attr.primaryKey > 0) {
+            cout << " PRIMARY KEY";
+        }
+        if (attr.refrel[0]) {
+            cout << " FOREIGN KEY REFERENCES " << attr.refrel << "(" << attr.refattr << ")";
+        }
+        cout << endl;
     }
     // success
     cout << "[DescTable]" << endl
@@ -485,7 +566,8 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if ((rc = fileScan.CloseScan())) {
             return rc;
         }
-        attrCat.indexNo = relCat.indexCount++;
+        attrCat.indexNo = relCat.indexCount;
+        relCat.indexCount += 2;
         attrCat.WriteRecordData(attrCatData);
         if ((rc = attrcatFileHandle.UpdateRec(attrCatRec))) {
             return rc;
@@ -504,8 +586,15 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if ((rc = ixm.CreateIndex(relName, attrCat.indexNo, attrCat.attrType, attrCat.attrLength))) {
             return rc;
         }
-        IX_IndexHandle indexHandle;
-        if ((rc = ixm.OpenIndex(relName, attrCat.indexNo, indexHandle))) {
+        if ((rc = ixm.CreateIndex(relName, attrCat.indexNo + 1, attrCat.attrType, attrCat.attrLength))) {
+            return rc;
+        }
+        IX_IndexHandle indexHandleNotNull;
+        IX_IndexHandle indexHandleNull;
+        if ((rc = ixm.OpenIndex(relName, attrCat.indexNo, indexHandleNotNull))) {
+            return rc;
+        }
+        if ((rc = ixm.OpenIndex(relName, attrCat.indexNo + 1, indexHandleNull))) {
             return rc;
         }
         // insert each record into index
@@ -532,8 +621,14 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
             if ((rc = record.GetRid(rid))) {
                 return rc;
             }
-            if ((rc = indexHandle.InsertEntry(recordData + attrCat.offset, rid))) {
-                return rc;
+            if (*(recordData + attrCat.offset) == 0) {
+                if ((rc = indexHandleNull.InsertEntry(recordData + attrCat.offset, rid))) {
+                    return rc;
+                }
+            } else {
+                if ((rc = indexHandleNotNull.InsertEntry(recordData + attrCat.offset, rid))) {
+                    return rc;
+                }
             }
         }
         // close things
@@ -543,7 +638,10 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if ((rc = rmm.CloseFile(relFileHandle))) {
             return rc;
         }
-        if ((rc = ixm.CloseIndex(indexHandle))) {
+        if ((rc = ixm.CloseIndex(indexHandleNotNull))) {
+            return rc;
+        }
+        if ((rc = ixm.CloseIndex(indexHandleNull))) {
             return rc;
         }
         break;
@@ -591,8 +689,15 @@ RC SM_Manager::DropIndex(const char* relName, const char* attrName) {
         if (attrCat.indexNo == -1) {
             return SM_INDEXNOTEXIST;
         }
+        // check whether index for primary key
+        if (attrCat.primaryKey > 0) {
+            return SM_INDEXPRIMARYKEY;
+        }
         // found && drop index
         if ((rc = ixm.DestroyIndex(relName, attrCat.indexNo))) {
+            return rc;
+        }
+        if ((rc = ixm.DestroyIndex(relName, attrCat.indexNo + 1))) {
             return rc;
         }
         // update info
@@ -650,8 +755,9 @@ RC SM_Manager::Print(const char* relName) {
         return rc;
     }
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) 
-       return rc;
+    if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+        return rc;
+    }
     // print each record
     while (true) {
         RM_Record record;

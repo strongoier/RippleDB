@@ -19,11 +19,16 @@
 extern SM_Manager *pSmm;
 extern QL_Manager *pQlm;
 
-#define E_OK                0
-#define E_TOOMANY           -1
-#define E_INVSTRLEN         -2
-#define E_DUPLICATEATTR     -3
-#define E_TOOLONG           -4
+#define E_OK                 0
+#define E_TOOMANY            -1
+#define E_INVSTRLEN          -2
+#define E_DUPLICATEATTR      -3
+#define E_TOOLONG            -4
+#define E_FOREIGNNOTEXIST    -5
+#define E_DUPLICATEFOREIGN   -6
+#define E_DUPLICATEPRIMARY   -7
+#define E_TOOMANYPRIMARY     -8
+#define E_PRIMARYNOTEXIST    -9
 
 /*
  * file pointer to which error messages are printed
@@ -226,9 +231,13 @@ RC interp(NODE *n) {
 static int mk_fields(NODE *list, int max, Field fields[]) {
     int i;
     int j;
+    int k;
     int len;
     int nameCount = 0;
     char *names[MAXATTRS];
+    bool hasPrimaryKey = false;
+    int foreignCount = 0;
+    char *foreigns[MAXATTRS];
     NODE *field;
     NODE *attr;
     NODE *primaryKey;
@@ -270,16 +279,33 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
             fields[i].attr.attrType = attr -> u.ATTRTYPE.type;
             fields[i].attr.attrLength = len;
         } else if (field -> u.FIELD.primaryKeyList != NULL) {
+            if (hasPrimaryKey) return E_TOOMANYPRIMARY;
+            hasPrimaryKey = true;
             primaryKey = field -> u.FIELD.primaryKeyList;
-            for (; primaryKey != NULL; primaryKey = primaryKey -> u.LIST.next)
+            for (; primaryKey != NULL; primaryKey = primaryKey -> u.LIST.next) {
+                bool found = false;
+                for (j = 0; !found && j < nameCount; ++j)
+                    if (!strcmp(names[j], primaryKey -> u.LIST.curr -> u.ATTR.attrname))
+                        found = true;
+                if (!found) return E_PRIMARYNOTEXIST;
                 fields[i].primaryKeyList[fields[i].nPrimaryKey++] = primaryKey -> u.LIST.curr -> u.ATTR.attrname;
+            }
+            for (j = 0; j < fields[i].nPrimaryKey; ++j)
+                for (k = 0; k < j; ++k)
+                    if (!strcmp(fields[i].primaryKeyList[j], fields[i].primaryKeyList[k]))
+                        return E_DUPLICATEPRIMARY;
         } else {
             if (strlen(attr -> u.FIELD.foreignKey) > MAXNAME)
                 return E_TOOLONG;
-            for (j = 0; j < nameCount; ++j)
+            bool found = false;
+            for (j = 0; !found && j < nameCount; ++j)
                 if (!strcmp(names[j], field -> u.FIELD.foreignKey))
-                    return E_DUPLICATEATTR;
-            names[nameCount++] = field -> u.FIELD.foreignKey;
+                    found = true;
+            if (!found) return E_FOREIGNNOTEXIST;
+            for (j = 0; j < foreignCount; ++j)
+                if (!strcmp(foreigns[j], field -> u.FIELD.foreignKey))
+                    return E_DUPLICATEFOREIGN;
+            foreigns[foreignCount++] = field -> u.FIELD.foreignKey;
             fields[i].foreignKey = field -> u.FIELD.foreignKey;
             fields[i].refRel = field -> u.FIELD.refRel;
             fields[i].refAttr = field -> u.FIELD.refAttr;
@@ -451,6 +477,21 @@ static void print_error(char *errmsg, RC errval) {
             break;
         case E_TOOLONG:
             fprintf(ERRFP, "relation name or attribute name too long\n");
+            break;
+        case E_FOREIGNNOTEXIST:
+            fprintf(ERRFP, "foreign key does not exist\n");
+            break;
+        case E_DUPLICATEFOREIGN:
+            fprintf(ERRFP, "duplicated foreign key name\n");
+            break;
+        case E_DUPLICATEPRIMARY:
+            fprintf(ERRFP, "duplicated primary key name\n");
+            break;
+        case E_TOOMANYPRIMARY:
+            fprintf(ERRFP, "too many primary keys\n");
+            break;
+        case E_PRIMARYNOTEXIST:
+            fprintf(ERRFP, "primary key does not exist\n");
             break;
         default:
             fprintf(ERRFP, "unrecognized errval: %d\n", errval);
