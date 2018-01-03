@@ -29,6 +29,7 @@ extern QL_Manager *pQlm;
 #define E_DUPLICATEPRIMARY   -7
 #define E_TOOMANYPRIMARY     -8
 #define E_PRIMARYNOTEXIST    -9
+#define E_GROUPNOTMATCH      -10
 
 /*
  * file pointer to which error messages are printed
@@ -118,7 +119,79 @@ RC interp(NODE *n) {
             errval = pSmm->Print(n->u.PRINT.relname);
             break;
 
-        case N_SELECT: { /* for Query() */
+        case N_SELECT_FUNC: { /* for SelectFunc() */
+
+            RelAttr relAttrFunc;
+            int nRelations = 0;
+            char *relations[MAXATTRS];
+            int nConditions = 0;
+            Condition conditions[MAXATTRS];
+
+            relAttrFunc.relName = n->u.SELECT_FUNC.func->u.FUNC.relattr->u.RELATTR.relname;
+            relAttrFunc.attrName = n->u.SELECT_FUNC.func->u.FUNC.relattr->u.RELATTR.attrname;
+
+            /* Make a list of relation names suitable for sending to Query */
+            nRelations = mk_relations(n->u.SELECT_FUNC.rellist, MAXATTRS, relations);
+            if (nRelations < 0) {
+                print_error((char*)"select_func", nRelations);
+                break;
+            }
+
+            /* Make a list of Conditions suitable for sending to Query */
+            nConditions = mk_conditions(n->u.SELECT_FUNC.conditionlist, MAXATTRS, conditions);
+            if (nConditions < 0) {
+                print_error((char*)"select_func", nConditions);
+                break;
+            }
+
+            /* Make the call to Select */
+            errval = pQlm->SelectFunc(n->u.SELECT_FUNC.func->u.FUNC.func, relAttrFunc, nRelations, relations, nConditions, conditions);
+            break;
+        }
+
+        case N_SELECT_GROUP: { /* for SelectGroup() */
+
+            RelAttr relAttrGroup;
+            RelAttr relAttrFunc;
+            int nRelations = 0;
+            char *relations[MAXATTRS];
+            int nConditions = 0;
+            Condition conditions[MAXATTRS];
+
+            if (strcmp(n->u.SELECT_GROUP.relattr1->u.RELATTR.relname, n->u.SELECT_GROUP.relattr2->u.RELATTR.relname)) {
+                print_error((char*)"select_group", E_GROUPNOTMATCH);
+                break;
+            }
+            if (strcmp(n->u.SELECT_GROUP.relattr1->u.RELATTR.attrname, n->u.SELECT_GROUP.relattr2->u.RELATTR.attrname)) {
+                print_error((char*)"select_group", E_GROUPNOTMATCH);
+                break;
+            }
+
+            relAttrGroup.relName = n->u.SELECT_GROUP.relattr1->u.RELATTR.relname;
+            relAttrGroup.attrName = n->u.SELECT_GROUP.relattr1->u.RELATTR.attrname;
+            relAttrFunc.relName = n->u.SELECT_GROUP.func->u.FUNC.relattr->u.RELATTR.relname;
+            relAttrFunc.attrName = n->u.SELECT_GROUP.func->u.FUNC.relattr->u.RELATTR.attrname;
+
+            /* Make a list of relation names suitable for sending to Query */
+            nRelations = mk_relations(n->u.SELECT_GROUP.rellist, MAXATTRS, relations);
+            if (nRelations < 0) {
+                print_error((char*)"select_group", nRelations);
+                break;
+            }
+
+            /* Make a list of Conditions suitable for sending to Query */
+            nConditions = mk_conditions(n->u.SELECT_GROUP.conditionlist, MAXATTRS, conditions);
+            if (nConditions < 0) {
+                print_error((char*)"select_group", nConditions);
+                break;
+            }
+
+            /* Make the call to Select */
+            errval = pQlm->SelectGroup(n->u.SELECT_GROUP.func->u.FUNC.func, relAttrFunc, relAttrGroup, nRelations, relations, nConditions, conditions);
+            break;
+        }
+
+        case N_SELECT: { /* for Select() */
             int nSelAttrs = 0;
             RelAttr relAttrs[MAXATTRS];
             int nRelations = 0;
@@ -492,6 +565,9 @@ static void print_error(char *errmsg, RC errval) {
             break;
         case E_PRIMARYNOTEXIST:
             fprintf(ERRFP, "primary key does not exist\n");
+            break;
+        case E_GROUPNOTMATCH:
+            fprintf(ERRFP, "group not match\n");
             break;
         default:
             fprintf(ERRFP, "unrecognized errval: %d\n", errval);

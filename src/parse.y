@@ -84,6 +84,13 @@ QL_Manager *pQlm;          // QL component manager
     RW_REFERENCES
     RW_EXIT
     RW_PRINT
+    RW_LIKE
+    RW_SUM
+    RW_AVG
+    RW_MAX
+    RW_MIN
+    RW_GROUP
+    RW_BY
     T_EQ
     T_LT
     T_LE
@@ -116,6 +123,8 @@ QL_Manager *pQlm;          // QL component manager
             dropindex
             print
             exit
+            select_func
+            select_group
             select
             insert
             delete 
@@ -125,6 +134,7 @@ QL_Manager *pQlm;          // QL component manager
             field_list
             field
             attrtype
+            func
             attr_list
             attr
             select_clause
@@ -277,6 +287,20 @@ exit
     }
     ;
 
+select_func
+    : RW_SELECT func RW_FROM relation_list opt_where_clause
+    {
+        $$ = select_func_node($2, $4, $5);
+    }
+    ;
+
+select_group
+    : RW_SELECT relattr ',' func RW_FROM relation_list opt_where_clause RW_GROUP RW_BY relattr
+    {
+        $$ = select_group_node($2, $4, $6, $7, $10);
+    }
+    ;
+
 select
     : RW_SELECT select_clause RW_FROM relation_list opt_where_clause
     {
@@ -369,6 +393,25 @@ attrtype
     | T_STRING RW_FLOAT
     {
         $$ = attrtype_node($1, FLOAT, 0);
+    }
+    ;
+
+func
+    : RW_SUM '(' relattr ')'
+    {
+        $$ = func_node(SUM, $3);
+    }
+    | RW_AVG '(' relattr ')'
+    {
+        $$ = func_node(AVG, $3);
+    }
+    | RW_MAX '(' relattr ')'
+    {
+        $$ = func_node(MAX, $3);
+    }
+    | RW_MIN '(' relattr ')'
+    {
+        $$ = func_node(MIN, $3);
     }
     ;
 
@@ -472,6 +515,10 @@ condition
     | relattr RW_IS RW_NOT RW_NULL
     {
         $$ = condition_node($1, NE_OP, relattr_or_value_node(NULL, NULL));
+    }
+    | relattr RW_LIKE relattr_or_value
+    {
+        $$ = condition_node($1, LIKE_OP, $3);
     }
     ;
 

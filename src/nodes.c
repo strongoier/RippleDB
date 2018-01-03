@@ -137,6 +137,24 @@ NODE *print_node(char *relname) {
     return n;
 }
 
+NODE *select_func_node(NODE *func, NODE *rellist, NODE *conditionlist) {
+    NODE *n = newnode(N_SELECT_FUNC);
+    n->u.SELECT_FUNC.func = func;
+    n->u.SELECT_FUNC.rellist = rellist;
+    n->u.SELECT_FUNC.conditionlist = conditionlist;
+    return n;
+}
+
+NODE *select_group_node(NODE *relattr1, NODE *func, NODE *rellist, NODE *conditionlist, NODE *relattr2) {
+    NODE *n = newnode(N_SELECT_GROUP);
+    n->u.SELECT_GROUP.relattr1 = relattr1;
+    n->u.SELECT_GROUP.func = func;
+    n->u.SELECT_GROUP.rellist = rellist;
+    n->u.SELECT_GROUP.conditionlist = conditionlist;
+    n->u.SELECT_GROUP.relattr2 = relattr2;
+    return n;
+}
+
 NODE *select_node(NODE *relattrlist, NODE *rellist, NODE *conditionlist) {
     NODE *n = newnode(N_SELECT);
     n->u.SELECT.relattrlist = relattrlist;
@@ -164,6 +182,13 @@ NODE *update_node(char *relname, NODE *setterlist, NODE *conditionlist) {
     n->u.UPDATE.relname = relname;
     n->u.UPDATE.setterlist = setterlist;
     n->u.UPDATE.conditionlist = conditionlist;
+    return n;
+}
+
+NODE *func_node(FuncType func, NODE *relattr) {
+    NODE *n = newnode(N_FUNC);
+    n -> u.FUNC.func = func;
+    n -> u.FUNC.relattr = relattr;
     return n;
 }
 

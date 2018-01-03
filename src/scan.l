@@ -29,8 +29,8 @@ s_num                         [+\-]?{num}
 {s_num}                       { sscanf(yytext, "%d", &yylval.ival); return T_INT; }
 {s_num}\.{num}                { sscanf(yytext, "%f", &yylval.rval); return T_REAL; }
 {s_num}\.{num}[Ee]{s_num}     { sscanf(yytext, "%f", &yylval.rval); return T_REAL; }
-\'([^\\\'\n]|(\\[^\'\n]))*\'    { yylval.sval = get_qstring(yytext, yyleng); return T_QSTRING; }
-\'([^\\\'\n]|(\\[^\'\n]))*\n    { printf("newline in string constant\n"); }
+\'([^\\\'\n]|(\\[^\'\n]))*\'  { yylval.sval = get_qstring(yytext, yyleng); return T_QSTRING; }
+\'([^\\\'\n]|(\\[^\'\n]))*\n  { printf("newline in string constant\n"); }
 {letter}({letter}|{digit}|_)* { return get_id(yylval.sval = yytext); }
 "<"                           { return T_LT; }
 "<="                          { return T_LE; }

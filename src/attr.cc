@@ -162,6 +162,16 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
     return true;
 }
 
+bool Attr::like_match(char* pattern, char* text) {
+    bool possible[MAXSTRINGLEN][MAXSTRINGLEN];
+    int lenPattern = strlen(pattern + 1);
+    int lenText = strlen(text + 1);
+    possible[0][0] = true;
+    for (int i = 1; i <= lenPattern; ++i) {
+        
+    }
+}
+
 int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
     int half, middle, begin = 0;
     int attrLengthWithRID = attrLength + sizeof(RID) + 1;

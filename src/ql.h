@@ -25,6 +25,21 @@ public:
     QL_Manager (SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm);
     ~QL_Manager();                       // Destructor
 
+    RC SelectFunc  (FuncType func,       // func type
+        const RelAttr relAttrFunc,       // func(relAttrFunc)
+        int   nRelations,                // # relations in from clause
+        const char * const relations[],  // relations in from clause
+        int   nConditions,               // # conditions in where clause
+        const Condition conditions[]);   // conditions in where clause
+
+    RC SelectGroup  (FuncType func,      // func type
+        const RelAttr relAttrFunc,       // func(relAttrFunc)
+        const RelAttr relAttrGroup,      // group by(relAttrGroup)
+        int   nRelations,                // # relations in from clause
+        const char * const relations[],  // relations in from clause
+        int   nConditions,               // # conditions in where clause
+        const Condition conditions[]);   // conditions in where clause
+
     RC Select  (int nSelAttrs,           // # attrs in select clause
         const RelAttr selAttrs[],        // attrs in select clause
         int   nRelations,                // # relations in from clause
@@ -42,8 +57,8 @@ public:
 
     RC Update  (const char *relName,     // relation to update
         int   nSetters,                  // number of setters
-        const RelAttr updAttrs[],         // attribute to update
-        const Value rhsValues[],          // or value to set attr equal to
+        const RelAttr updAttrs[],        // attribute to update
+        const Value rhsValues[],         // value to set attr equal to
         int   nConditions,               // # conditions in where clause
         const Condition conditions[]);   // conditions in where clause
 

@@ -52,10 +52,13 @@ typedef enum {
     N_CREATEINDEX,
     N_DROPINDEX,
     N_PRINT,
+    N_SELECT_FUNC,
+    N_SELECT_GROUP,
     N_SELECT,
     N_INSERT,
     N_DELETE,
     N_UPDATE,
+    N_FUNC,
     N_RELATTR,
     N_CONDITION,
     N_RELATTR_OR_VALUE,
@@ -121,6 +124,20 @@ typedef struct node{
             char *relname;
         } PRINT;
         /* QL component nodes */
+        /* select_func node */
+        struct {
+            struct node *func;
+            struct node *rellist;
+            struct node *conditionlist;
+        } SELECT_FUNC;
+        /* select_group node */
+        struct {
+            struct node *relattr1;
+            struct node *func;
+            struct node *rellist;
+            struct node *conditionlist;
+            struct node *relattr2;
+        } SELECT_GROUP;
         /* select node */
         struct {
             struct node *relattrlist;
@@ -144,6 +161,11 @@ typedef struct node{
             struct node *conditionlist;
         } UPDATE;
         /* command support nodes */
+        /* function node */
+        struct {
+            FuncType func;
+            struct node *relattr;
+        } FUNC;
         /* relation attribute node */
         struct {
             char *relname;
@@ -219,10 +241,13 @@ NODE *desc_table_node(char *relname);
 NODE *create_index_node(char *relname, char *attrname);
 NODE *drop_index_node(char *relname, char *attrname);
 NODE *print_node(char *relname);
+NODE *select_func_node(NODE *func, NODE *rellist, NODE *conditionlist);
+NODE *select_group_node(NODE *relattr1, NODE *func, NODE *rellist, NODE *conditionlist, NODE *relattr2);
 NODE *select_node(NODE *relattrlist, NODE *rellist, NODE *conditionlist);
 NODE *insert_node(char *relname, NODE *valuelists);
 NODE *delete_node(char *relname, NODE *conditionlist);
 NODE *update_node(char *relname, NODE *setterlist, NODE *conditionlist);
+NODE *func_node(FuncType func, NODE *relattr);
 NODE *relattr_node(char *relname, char *attrname);
 NODE *condition_node(NODE *lhsRelattr, CompOp op, NODE *rhsRelattrOrValue);
 NODE *relattr_or_value_node(NODE *relattr, NODE *value);

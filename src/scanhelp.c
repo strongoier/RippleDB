@@ -96,6 +96,13 @@ static int get_id(char *s) {
     if (!strcmp(string, "references"))return yylval.ival = RW_REFERENCES;
     if (!strcmp(string, "exit"))      return yylval.ival = RW_EXIT;
     if (!strcmp(string, "print"))     return yylval.ival = RW_PRINT;
+    if (!strcmp(string, "like"))      return yylval.ival = RW_LIKE;
+    if (!strcmp(string, "sum"))       return yylval.ival = RW_SUM;
+    if (!strcmp(string, "avg"))       return yylval.ival = RW_AVG;
+    if (!strcmp(string, "max"))       return yylval.ival = RW_MAX;
+    if (!strcmp(string, "min"))       return yylval.ival = RW_MIN;
+    if (!strcmp(string, "group"))     return yylval.ival = RW_GROUP;
+    if (!strcmp(string, "by"))        return yylval.ival = RW_BY;
     yylval.sval = mk_string(s, len);
     return T_STRING;
 }

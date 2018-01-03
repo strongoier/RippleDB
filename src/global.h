@@ -94,11 +94,22 @@ enum AttrType {
 //
 enum CompOp {
     NO_OP, // no comparison
-    EQ_OP, NE_OP, LT_OP, GT_OP, LE_OP, GE_OP // binary atomic operators
+    EQ_OP, NE_OP, LT_OP, GT_OP, LE_OP, GE_OP, // binary atomic operators
+    LIKE_OP // similar matching operator
 };
 
 int ToLevel(CompOp op);
 // EQ < LT = GT = LE = GE < NE < NO
+
+//
+// Function types
+//
+enum FuncType {
+    SUM,
+    AVG,
+    MAX,
+    MIN
+};
 
 //
 // Attr: Class for operating attributes
