@@ -30,20 +30,28 @@ public:
     SM_Manager(IX_Manager& ixm, RM_Manager& rmm);
     ~SM_Manager();
 
+    // Create database dbName.
+    RC CreateDb(const char* dbName);
+    // Drop database dbName.
+    RC DropDb(const char* dbName);
+    // Show databases.
+    RC ShowDbs();
     // Open database dbName.
     RC OpenDb(const char* dbName);
     // Close the opened database.
     RC CloseDb();
-    // Create relation relName with attrCount attributes.
-    RC CreateTable(const char* relName, int attrCount, AttrInfo* attributes);
-    // Create index for relName.attrName.
-    RC CreateIndex(const char* relName, const char* attrName);
+    // Show tables.
+    RC ShowTables();
+    // Create relation relName with fieldCount fields.
+    RC CreateTable(const char* relName, int fieldCount, Field* fields);
     // Drop relation relName.
     RC DropTable(const char* relName);
+    // Desc relation relName.
+    RC DescTable(const char* relName);
+    // Create index for relName.attrName.
+    RC CreateIndex(const char* relName, const char* attrName);    
     // Drop index for relName.attrName.
     RC DropIndex(const char* relName, const char* attrName);
-    // Load relation relName from file fileName.
-    RC Load(const char* relName, const char* fileName);
     // Print relation relName contents.
     RC Print(const char* relName);
 
@@ -52,6 +60,8 @@ private:
     RC CheckRelExist(const char* relName, RM_Record& relCatRec);
     // Get all attrs relation relName in attrcat.
     RC GetAttrs(const char* relName, std::vector<AttrCat>& attrs);
+    // Load relation relName from file fileName.
+    RC Load(const char* relName, const char* fileName);
 
     IX_Manager& ixm; // internal IX_Manager
     RM_Manager& rmm; // internal RM_Manager
@@ -74,5 +84,7 @@ void SM_PrintError(RC rc);
 #define SM_FILENOTFOUND  (START_SM_WARN + 6)  // file not found
 #define SM_RELEXIST      (START_SM_WARN + 7)  // relation already exist
 #define SM_LOADERROR     (START_SM_WARN + 8)  // error while loading
+#define SM_DBISOPEN      (START_SM_WARN + 9)  // a db is open
+#define SM_SYSERROR      (START_SM_WARN + 10) // system error
 
 #endif

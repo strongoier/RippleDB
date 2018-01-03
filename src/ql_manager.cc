@@ -364,11 +364,12 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     // 检查被更新属性是否合法
     vector<AttrCat>::iterator *iters = new vector<AttrCat>::iterator[nSetters];
     for (int i = 0; i < nSetters; ++i) {
-        iters[i] = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, updAttrs[i].attrName); });
+        iters[i] = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, updAttrs[i].attrName) == 0; });
         if (iters[i] == attrs.end()) {
             return QL_ATTRNOTFOUND;
         }
         if (iters[i]->attrType != rhsValues[i].type) {
+            cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
             return QL_ATTRTYPEWRONG;
         }
     }
@@ -434,6 +435,7 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     if ((rc = rmManager.CloseFile(rmFileHandle))) {
         return rc;
     }
+    delete[] iters;
     
     // print
     cout << "Update\n";
