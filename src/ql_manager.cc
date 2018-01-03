@@ -26,7 +26,7 @@ using namespace std;
 //
 // Constructor for the QL Manager
 //
-QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm) :  rmManager(rmm), ixManager(ixm), smManager(smm) {}
+QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm) : rmManager(rmm), ixManager(ixm), smManager(smm) {}
 
 //
 // QL_Manager::~QL_Manager()
@@ -345,48 +345,40 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
 //
 // Update from the relName all tuples that satisfy conditions
 //
-RC QL_Manager::Update(const char *relName, const RelAttr &updAttr, const int bIsValue, const RelAttr &rhsRelAttr, const Value &rhsValue, int nConditions, const Condition conditions[]) {
+RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[], const Value rhsValues[], int nConditions, const Condition conditions[]) {
     RC rc;
-    // check whether a db is open
+    // 判断数据库是否被打开
     if ((rc = CheckSMManagerIsOpen())) {
         return rc;
     }
-    // find relation name in relCat
+    // 获取数据表信息
     RelCat relCat;
     if ((rc = CheckRelCat(relName, relCat))) {
         return rc;
     }
-    // get attr info in the relation
+    // 获取数据表中的属性值信息
     vector<AttrCat> attrs;
     if ((rc = smManager.GetAttrs(relName, attrs))) {
         return rc;
     }
-    // check updAttr
-    auto iter = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, updAttr.attrName) == 0; });
-    if (iter == attrs.end()) {
-        return QL_ATTRNOTFOUND;
-    }
-    // check rhs type
-    auto rIter = attrs.end();
-    if (bIsValue) {
-        if (iter->attrType != rhsValue.type) {
-            return QL_ATTRTYPEWRONG;
-        }
-    } else {
-        rIter = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, rhsRelAttr.attrName) == 0; });
-        if (iter == attrs.end()) {
+    // 检查被更新属性是否合法
+    vector<AttrCat>::iterator *iters = new vector<AttrCat>::iterator[nSetters];
+    for (int i = 0; i < nSetters; ++i) {
+        iters[i] = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, updAttrs[i].attrName) == 0; });
+        if (iters[i] == attrs.end()) {
             return QL_ATTRNOTFOUND;
         }
-        if (iter->attrType != rIter->attrType) {
+        if (iters[i]->attrType != rhsValues[i].type) {
+            cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
             return QL_ATTRTYPEWRONG;
         }
     }
-    // check the conditions
+    // 检查限制条件并补充信息
     vector<FullCondition> fullConditions;
     if ((rc = GetFullConditions(relName, attrs, nConditions, conditions, fullConditions))) {
         return rc;
     }
-    // scan the rid set
+    // 获取被更新的记录集合
     RM_FileHandle rmFileHandle;
     if ((rc = rmManager.OpenFile(relName, rmFileHandle))) {
         return rc;
@@ -395,40 +387,35 @@ RC QL_Manager::Update(const char *relName, const RelAttr &updAttr, const int bIs
     if ((rc = GetRidSet(relName, rmFileHandle, fullConditions, rids))) {
         return rc;
     }
-    // update index
-    if (iter->indexNo != -1) {
-        IX_IndexHandle indexHandle;
-        if ((rc = ixManager.OpenIndex(relName, iter->indexNo, indexHandle))) {
-            return rc;
-        }
-        for (const auto& rid : rids) {
-            RM_Record record;
-            if ((rc = rmFileHandle.GetRec(rid, record))) {
+    // 更新索引
+    for (int i = 0; i < nSetters; ++i) {
+        if (iters[i]->indexNo != -1) {
+            IX_IndexHandle indexHandle;
+            if ((rc = ixManager.OpenIndex(relName, iters[i]->indexNo, indexHandle))) {
                 return rc;
             }
-            char *recordData;
-            if ((rc = record.GetData(recordData))) {
-                return rc;
-            }
-            if ((rc = indexHandle.DeleteEntry(recordData + iter->offset, rid))) {
-                return rc;
-            }
-            if (bIsValue) {
-                if ((rc = indexHandle.InsertEntry(rhsValue.data, rid))) {
+            for (const auto& rid : rids) {
+                RM_Record record;
+                if ((rc = rmFileHandle.GetRec(rid, record))) {
                     return rc;
                 }
-            } else {
-                if ((rc = indexHandle.InsertEntry(recordData + rIter->offset, rid))) {
+                char *recordData;
+                if ((rc = record.GetData(recordData))) {
+                    return rc;
+                }
+                if ((rc = indexHandle.DeleteEntry(recordData + iters[i]->offset, rid))) {
+                    return rc;
+                }
+                if ((rc = indexHandle.InsertEntry(rhsValues[i].data, rid))) {
                     return rc;
                 }
             }
-        }
-        if ((rc = ixManager.CloseIndex(indexHandle))) {
-            return rc;
+            if ((rc = ixManager.CloseIndex(indexHandle))) {
+                return rc;
+            }
         }
     }
-
-    // update record
+    // 更新记录文件
     for (const auto &rid : rids) {
         RM_Record record;
         if ((rc = rmFileHandle.GetRec(rid, record))) {
@@ -438,10 +425,8 @@ RC QL_Manager::Update(const char *relName, const RelAttr &updAttr, const int bIs
         if ((rc = record.GetData(recordData))) {
             return rc;
         }
-        if (bIsValue) {
-            Attr::SetAttr(recordData + iter->offset, iter->attrType, rhsValue.data);
-        } else {
-            Attr::SetAttr(recordData + iter->offset, iter->attrType, recordData + rIter->offset);
+        for (int i = 0; i < nSetters; ++i) {
+            Attr::SetAttr(recordData + iters[i]->offset, iters[i]->attrType, rhsValues[i].data);
         }
         if ((rc = rmFileHandle.UpdateRec(record))) {
             return rc;
@@ -450,16 +435,16 @@ RC QL_Manager::Update(const char *relName, const RelAttr &updAttr, const int bIs
     if ((rc = rmManager.CloseFile(rmFileHandle))) {
         return rc;
     }
+    delete[] iters;
     
     // print
     cout << "Update\n";
     cout << "   relName = " << relName << "\n";
-    cout << "   updAttr:" << updAttr << "\n";
-    if (bIsValue)
-        cout << "   rhs is value: " << rhsValue << "\n";
-    else
-        cout << "   rhs is attribute: " << rhsRelAttr << "\n";
-
+    cout << "   nSetters = " << nSetters << "\n";
+    for (int i = 0; i < nSetters; ++i) {
+        cout << "   updAttrs[i]:" << updAttrs[i] << "\n";
+        cout << "   rhs is value: " << rhsValues[i] << "\n";
+    }
     cout << "   nCondtions = " << nConditions << "\n";
     for (int i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
@@ -472,6 +457,9 @@ RC QL_Manager::Update(const char *relName, const RelAttr &updAttr, const int bIs
     return 0;
 }
 
+//
+// 检查数据库是否被打开
+//
 RC QL_Manager::CheckSMManagerIsOpen() {
     if (!smManager.isOpen) {
         return QL_DBNOTOPEN;
@@ -479,113 +467,167 @@ RC QL_Manager::CheckSMManagerIsOpen() {
     return OK_RC;
 }
 
+//
+// 检查数据表是否存在，如果存在，提取数据表信息
+//
 RC QL_Manager::CheckRelCat(const char* relName, RelCat& relCat) {
     RC rc;
     RM_Record relCatRec;
+    // 检查数据表是否存在
     if ((rc = smManager.CheckRelExist(relName, relCatRec))) {
         return rc;
     }
+    // 获取数据表数据
     char* relCatData;
     if ((rc = relCatRec.GetData(relCatData))) {
         return rc;
     }
+    // 格式化数据表数据
     relCat = RelCat(relCatData);
     return OK_RC;
 }
 
+//
+// 检查数据表是否存在，如果存在，提取数据表信息（并不提取属性信息，属性值为空）
+//
 RC QL_Manager::CheckRelCats(int nRelations, const char* const relations[], std::map<RelCat, std::vector<AttrCat>>& relCats) {
     RC rc;
+    // 遍历每个表名称
     for (int i = 0; i < nRelations; ++i) {
         RelCat relCat;
+        // 获取数据表信息
         if ((rc = CheckRelCat(relations[i], relCat))) {
             return rc;
         }
+        // 如果数据表重复出现，报错
         if (relCats.find(relCat) != relCats.end()) {
             return QL_RELMULTIAPPEAR;
         }
+        // 插入到结果集合（属性值均为空）
         relCats.insert(std::make_pair(relCat, std::vector<AttrCat>()));
     }
     return OK_RC;
 }
 
+//
+// 在完整的数据表-属性数据结构中查找某一原始属性结构对应的具体信息
+//
 RC QL_Manager::CheckAttrCat(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, RelCat& relCat, AttrCat& attrCat) {
     if (relAttr.relName != NULL) {
-        // relName is specified
-        // check if relNAme exists
+        // 如果属性指定表名
+        // 检查该表名是否存在
         auto relIter = find_if(relCats.begin(), relCats.end(), [&](const std::map<RelCat, std::vector<AttrCat>>::value_type& item) { return strcmp(item.first.relName, relAttr.relName) == 0; });
+        // 如果不存在，报错
         if (relIter == relCats.end()) {
             return QL_RELNOTFOUND;
         }
+        // 获取数据表信息
         relCat = relIter->first;
-        // check if attr exists
+        // 检查属性名是否存在
         auto attrIter = find_if(relIter->second.begin(), relIter->second.end(), [&](const AttrCat& item) { return strcmp(item.attrName, relAttr.attrName) == 0; });
+        // 如果不存在，报错
         if (attrIter == relIter->second.end()) {
             return QL_ATTRNOTFOUND;
         }
+        // 获取属性信息
         attrCat = *attrIter;
     } else {
-        // no relName
-        // check attr exist
+        // 如果属性没有指定表名
+        // 遍历数据表查找属性名
         int cnt = 0;
         for (const auto& item : relCats) {
             auto iter = find_if(item.second.begin(), item.second.end(), [&](const AttrCat& i) { return strcmp(i.attrName, relAttr.attrName) == 0; });
+            // 没找到，跳过
             if (iter == item.second.end()) {
                 continue;
             }
+            // 找到了，更新计数器与相关信息
             ++cnt;
             relCat = item.first;
             attrCat = *iter;
+            // 发现重复直接退出
+            if (cnt == 2) {
+                break;
+            }
         }
+        // 找不到属性名，报错
         if (cnt == 0) {
             return QL_ATTRNOTFOUND;
         }
-        if (cnt > 1) {
+        // 属性名多次出现，报错
+        if (cnt == 2) {
             return QL_ATTRMULTIAPPEAR;
         }
     }
     return OK_RC;
 }
 
+//
+// 在完整的数据表-属性数据结构中查找某一原始属性结构对应的具体信息，并写入查询属性集中
+//
 RC QL_Manager::CheckAttrCats(const RelAttr& relAttr, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<AttrCat>>& attrs) {
     RC rc;
     RelCat key;
     AttrCat value;
+    // 获取属性值的具体信息
     if ((rc = CheckAttrCat(relAttr, relCats, key, value))) {
         return rc;
     }
-    // check if attr multi appear
+    // 插入查询属性集中
     auto relIterator = attrs.find(key);
     if (relIterator == attrs.end()) {
+        // 新的数据表，直接插入键值对
         std::vector<AttrCat> tmp = { value };
         attrs.insert(std::make_pair(key, tmp));
     } else {
+        // 已有数据表键值对
         auto attrIterator = find_if(relIterator->second.begin(), relIterator->second.end(), [&](const AttrCat& item) { return strcmp(item.attrName, relAttr.attrName) == 0; });
+        // 重复出现，报错
         if (attrIterator != relIterator->second.end())
             {
             return QL_ATTRMULTIAPPEAR;
         }
+        // 插入
         relIterator->second.push_back(value);
     }
     return OK_RC;
 }
 
+//
+// 将原始单表限定条件（delete 与 update 的 where 字句）集合补充为完整单表限制条件集合
+//
 RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& attrs, int nConditions, const Condition conditions[], vector<FullCondition>& fullConditions) {
+    // 遍历每一个原始条件
     for (int i = 0; i < nConditions; ++i) {
+        // 在完整属性集合中查找条件中左属性名是否存在
         auto iter = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, conditions[i].lhsAttr.attrName) == 0; });
+        // 不存在，报错
         if (iter == attrs.end()) {
             return QL_ATTRNOTFOUND;
         }
+        // 获得完整限制条件结构
         FullCondition fc;
         fc.lhsAttr = *iter;
         fc.op = conditions[i].op;
         fc.bRhsIsAttr = conditions[i].bRhsIsAttr;
         if (fc.bRhsIsAttr) {
+            // 条件右侧为属性，查找是否存在
             auto rIter = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, conditions[i].rhsAttr.attrName) == 0; });
+            // 不存在，报错
             if (rIter == attrs.end()) {
                 return QL_ATTRNOTFOUND;
             }
+            // 类型不一致，报错
+            if (iter->attrType != rIter->attrType) {
+                return QL_ATTRTYPEWRONG;
+            }
             fc.rhsAttr = *rIter;
         } else {
+            // 条件右侧为值
+            // 类型不一致，报错
+            if (iter->attrType != conditions[i].rhsValue.type) {
+                return QL_ATTRTYPEWRONG;
+            }
             fc.rhsValue = conditions[i].rhsValue;
         }
         fullConditions.push_back(fc);
@@ -593,27 +635,32 @@ RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& att
     return OK_RC;
 }
 
+//
+// 将某一原始单表或多表限定条件（select 的 where 字句）集合补充并归类到完整单表与多表限制条件集合
+//
 RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds) {
     RC rc;
     FullCondition fullCondition;
-    // check lhsAttr
+    // 检查左侧属性
     RelCat relCat;
     AttrCat attrCat;
+    // 获取左侧属性的详细信息
     if ((rc = CheckAttrCat(condition.lhsAttr, relCats, relCat, attrCat))) {
         return rc;
     }
-    // check rhs
+    // 检查右侧属性或值
     if (condition.bRhsIsAttr == 0) {
-        cerr << "into cond" << endl;
-        // check type
+        // 如果右侧为字面值
+        // 类型不一致，报错
         if (attrCat.attrType != condition.rhsValue.type) {
             return QL_ATTRTYPEWRONG;
         }
-        // ok
+        // 补充为完整结构体
         fullCondition.lhsAttr = attrCat;
         fullCondition.op = condition.op;
         fullCondition.bRhsIsAttr = condition.bRhsIsAttr;
         fullCondition.rhsValue = condition.rhsValue;
+        // 插入到完整单表限制条件集合中（右侧为值一定为单表条件）
         auto iter = singalRelConds.find(relCat);
         if (iter == singalRelConds.end()) {
             std::vector<FullCondition> tmp = {fullCondition};
@@ -622,22 +669,24 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
             iter->second.push_back(fullCondition);
         }
     } else {
-        // check whether attr exist
+        // 如果右侧为属性
+        // 检查右侧属性是否存在
         RelCat rhsRelCat;
         AttrCat rhsAttrCat;
         if ((rc = CheckAttrCat(condition.rhsAttr, relCats, rhsRelCat, rhsAttrCat))) {
             return rc;
         }
-        // check type
+        // 如果类型不一致，报错
         if (attrCat.attrType != rhsAttrCat.attrType) {
             return QL_ATTRTYPEWRONG;
         }
-        // ok
+        // 生成完整限制条件（此时可能会切换左右属性顺序，保证左侧属性字典序小于等于右侧）
         fullCondition.lhsAttr = relCat < rhsRelCat ? attrCat : rhsAttrCat;
         fullCondition.op = condition.op;
         fullCondition.bRhsIsAttr = condition.bRhsIsAttr;
         fullCondition.rhsAttr = relCat < rhsRelCat ? rhsAttrCat : attrCat;
         if (relCat == rhsRelCat) {
+            // 如果为单表限制条件，插入单表限制条件集合
             auto iter = singalRelConds.find(relCat);
             if (iter == singalRelConds.end()) {
                 std::vector<FullCondition> tmp = {fullCondition};
@@ -646,6 +695,7 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
                 iter->second.push_back(fullCondition);
             }
         } else {
+            // 如果为多表限制条件，修改比较操作符然后，插入多表限制条件集合
             if (!(relCat < rhsRelCat || relCat == rhsRelCat)) {
                 switch (fullCondition.op) {
                     case LT_OP:
@@ -677,9 +727,12 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
     return OK_RC;
 }
 
+//
+// 利用单表限制集合在某个数据表中提取满足条件的 RID 集合（尽可能使用索引加速）
+//
 RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<RID>& rids) {
     RC rc;
-    // the condition with index
+    // 查找出带有索引的属性值
     int index = -1;
     for (unsigned int i = 0; i < fullConditions.size(); ++i) {
         if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0) {
@@ -687,9 +740,8 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
             break;
         }
     }
-    // scan the rids
     if (index == -1) {
-        // use only rm scan
+        // 如果没有属性带有索引，使用记录文件暴力扫描
         RM_FileScan rmFileScan;
         if ((rc = rmFileScan.OpenScan(rmFileHandle, fullConditions))) {
             return rc;
@@ -712,8 +764,8 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
             return rc;
         }
     } else {
-        // use index scan and rm scan
-        // open index scan
+        // 发现属性带有索引
+        // 先使用索引缩小查找范围，然后确定最终集合
         IX_IndexHandle indexHandle;
         if ((rc = ixManager.OpenIndex(relName, fullConditions[index].lhsAttr.indexNo, indexHandle))) {
             return rc;
@@ -722,7 +774,7 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
         if ((rc = indexScan.OpenScan(indexHandle, fullConditions[index].op, fullConditions[index].rhsValue.data))) {
             return rc;
         }
-        // scan the rid
+        // 索引扫描
         while (true) {
             RID rid;
             if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
@@ -731,6 +783,7 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
             if (rc == IX_EOF) {
                 break;
             }
+            // 判断该条记录是否满足条件
             RM_Record record;
             if ((rc = rmFileHandle.GetRec(rid, record))) {
                 return rc;
@@ -747,7 +800,6 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
                 rids.push_back(rid);
             }
         }
-        // close scan
         if ((rc = indexScan.CloseScan())) {
             return rc;
         }
@@ -758,9 +810,12 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
     return OK_RC;
 }
 
+//
+// 利用单表限制条件集合在某个数据表中提取满足条件的记录（尽可能使用索引，分配的空间需要在外部释放）
+//
 RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, const std::vector<FullCondition>& fullConditions, std::vector<char*>& data) {
     RC rc;
-    // the condition with index
+    // 查找出带有索引的属性值
     int index = -1;
     for (unsigned int i = 0; i < fullConditions.size(); ++i) {
         if (fullConditions[i].lhsAttr.indexNo >= 0 && fullConditions[i].bRhsIsAttr == 0) {
@@ -768,9 +823,8 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             break;
         }
     }
-    // scan the rids
     if (index == -1) {
-        // use only rm scan
+        // 如果没有属性带有索引，使用记录文件暴力扫描
         RM_FileScan rmFileScan;
         if ((rc = rmFileScan.OpenScan(rmFileHandle, fullConditions))) {
             return rc;
@@ -796,8 +850,8 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             return rc;
         }
     } else {
-        // use index scan and rm scan
-        // open index scan
+        // 发现属性带有索引
+        // 先使用索引缩小查找范围，然后确定最终集合
         IX_IndexHandle indexHandle;
         if ((rc = ixManager.OpenIndex(relCat.relName, fullConditions[index].lhsAttr.indexNo, indexHandle))) {
             return rc;
@@ -806,7 +860,7 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
         if ((rc = indexScan.OpenScan(indexHandle, fullConditions[index].op, fullConditions[index].rhsValue.data))) {
             return rc;
         }
-        // scan the rid
+        // 索引扫描
         while (true) {
             RID rid;
             if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
@@ -815,6 +869,7 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             if (rc == IX_EOF) {
                 break;
             }
+            // 判断该条记录是否满足条件
             RM_Record record;
             if ((rc = rmFileHandle.GetRec(rid, record))) {
                 return rc;
@@ -833,7 +888,6 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
                 data.push_back(d);
             }
         }
-        // close scan
         if ((rc = indexScan.CloseScan())) {
             return rc;
         }
@@ -844,6 +898,9 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
     return OK_RC;
 }
 
+//
+// 检查某条记录是否满足给定单表限制条件集合
+//
 RC QL_Manager::CheckFullConditions(char* recordData, const std::vector<FullCondition>& fullConditions, bool& result) {
     result = true;
     for (unsigned int i = 0; result && i < fullConditions.size(); ++i) {
@@ -852,6 +909,9 @@ RC QL_Manager::CheckFullConditions(char* recordData, const std::vector<FullCondi
     return OK_RC;
 }
 
+//
+// 检查两条记录是否满足给定多表限制条件集合
+//
 bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<FullCondition>& conditions) {
     bool ret = true;
     for (unsigned int i = 0; ret && i < conditions.size(); ++i) {
@@ -860,15 +920,23 @@ bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<
     return ret;
 }
 
+//
+// 将多个单表记录集合按照多表限制条件集合连接成结果数据集
+//
 RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds, std::vector<std::map<RelCat, char*>>& joinData) {
+    // 记录已处理的数据表
     std::set<RelCat> rels;
+    // 遍历多表限制条件集合
     for (const auto& conditions : binaryRelConds) {
         const RelCat& aRelCat = conditions.first.first;
         const RelCat& bRelCat = conditions.first.second;
+        // 判断数据表是否被处理过
         auto aIter = rels.find(aRelCat);
         auto bIter = rels.find(bRelCat);
         if (aIter == rels.end() && bIter == rels.end()) {
+            // 如果两个数据表均未被处理过
             std::vector<std::map<RelCat, char*>> tmp;
+            // 连接两个数据表作为临时结果
             for (auto& aData : data[aRelCat]) {
                 for (auto& bData : data[bRelCat]) {
                     if (CheckFullCondition(aData, bData, conditions.second)) {
@@ -876,6 +944,7 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
                     }
                 }
             }
+            // 连接临时结果与已有连接结果
             std::vector<std::map<RelCat, char*>> tmpJoin;
             for (const auto& a : joinData) {
                 for (const auto& b : tmp) {
@@ -886,10 +955,14 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
                     tmpJoin.emplace_back(join);
                 }
             }
+            // 更新已有连接结果
             joinData = tmpJoin;
+            // 标注已被处理
             rels.insert(aRelCat);
             rels.insert(bRelCat);
         } else if (aIter == rels.end() && bIter != rels.end()) {
+            // 有一个数据表被处理过
+            // 直接在已有连接结果与另一数据表集合间连接
             std::vector<std::map<RelCat, char*>> tmpJoin;
             for (auto& b : joinData) {
                 for (auto& a : data[aRelCat]) {
@@ -900,9 +973,12 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
                     }
                 }
             }
+            // 更新已有连接结果
             joinData = tmpJoin;
+            // 标注已被处理
             rels.insert(aRelCat);
         } else if (aIter != rels.end() && bIter == rels.end()) {
+            // 同上
             std::vector<std::map<RelCat, char*>> tmpJoin;
             for (auto& a : joinData) {
                 for (auto& b : data[bRelCat]) {
@@ -917,6 +993,7 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
             rels.insert(bRelCat);
         }
     }
+    // 遍历数据集，将多表条件中没有涉及到的数据表连接至已有结果中。
     for (const auto& d : data) {
         const RelCat& relCat = d.first;
         auto iter = rels.find(relCat);

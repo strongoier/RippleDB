@@ -159,7 +159,7 @@ RC SM_Manager::ShowDbs() {
     char line[MAXSTRINGLEN];
     FILE* fin = fopen("all_dirs.txt", "r");
     while (fgets(line, MAXSTRINGLEN, fin) != NULL) {
-        line[strlen(line) - 1] = 0;
+        line[strlen(line) - 2] = 0;
         puts(line);
     }
     fclose(fin);
@@ -277,6 +277,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     char* recordData = new char[AttrCat::SIZE];
     RID rid;
     int recordSize = 0;
+    int attrCount = 0;
     for (int i = 0; i < fieldCount; ++i) {
         if (fields[i].attr.attrName != NULL) {
             AttrCat(relName, fields[i].attr.attrName, recordSize, fields[i].attr.attrType, fields[i].attr.attrLength, -1).WriteRecordData(recordData);
@@ -284,6 +285,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
                 return rc;
             }
             recordSize += fields[i].attr.attrLength;
+            ++attrCount;
         }
     }
     if ((rc = attrcatFileHandle.ForcePages())) {
@@ -292,7 +294,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     delete[] recordData;
     // update relcat
     recordData = new char[RelCat::SIZE];
-    RelCat(relName, recordSize, fieldCount, 0).WriteRecordData(recordData);
+    RelCat(relName, recordSize, attrCount, 0).WriteRecordData(recordData);
     if ((rc = relcatFileHandle.InsertRec(recordData, rid))) {
         return rc;
     }
@@ -369,9 +371,11 @@ RC SM_Manager::DropTable(const char* relName) {
         if ((rc = attrcatFileHandle.DeleteRec(rid))) {
             return rc;
         }
-        break;
     }
     if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
+    if ((rc = relcatFileHandle.ForcePages())) {
         return rc;
     }
     if ((rc = attrcatFileHandle.ForcePages())) {
@@ -389,6 +393,15 @@ RC SM_Manager::DropTable(const char* relName) {
 
 RC SM_Manager::DescTable(const char* relName) {
     RC rc;
+    // check whether a db is open
+    if (!isOpen) {
+        return SM_DBNOTOPEN;
+    }
+    // find relation relName in relcat
+    RM_Record relCatRec;
+    if ((rc = CheckRelExist(relName, relCatRec))) {
+        return rc;
+    }
     // find all attributes of relation relName in attrcat
     vector<AttrCat> attrs;
     if ((rc = GetAttrs(relName, attrs))) {

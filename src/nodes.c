@@ -225,7 +225,7 @@ NODE *setter_node(char *attrname, NODE *value) {
     return n;
 }
 
-NODE *attrtype_node(char *attrname, AttrType type, NODE *length) {
+NODE *attrtype_node(char *attrname, AttrType type, int length) {
     NODE *n = newnode(N_ATTRTYPE);
     n -> u.ATTRTYPE.attrname = attrname;
     n -> u.ATTRTYPE.type = type;

@@ -78,7 +78,7 @@ QL_Manager *pQlm;          // QL component manager
     RW_DESC
     RW_INDEX
     RW_AND
-    RW_DATA
+    RW_DATE
     RW_FLOAT
     RW_FOREIGN
     RW_REFERENCES
@@ -167,11 +167,7 @@ start
     ;
 
 program
-    : command ';' program
-    {
-        $$ = prepend($1, $3);
-    }
-    | command ';'
+    : command ';'
     {
         $$ = list_node($1);
     }
@@ -218,9 +214,9 @@ showdatabases
     ;
 
 usedatabase
-    : RW_USE RW_DATABASE T_STRING
+    : RW_USE T_STRING
     {
-        $$ = use_database_node($3);
+        $$ = use_database_node($2);
     }
     ;
 
@@ -284,7 +280,7 @@ exit
 select
     : RW_SELECT select_clause RW_FROM relation_list opt_where_clause
     {
-        $$ = query_node($2, $4, $5);
+        $$ = select_node($2, $4, $5);
     }
     ;
 
@@ -368,11 +364,11 @@ attrtype
     }
     | T_STRING RW_DATE
     {
-        $$ = attrtype_node($1, DATE, NULL);
+        $$ = attrtype_node($1, DATE, 0);
     }
     | T_STRING RW_FLOAT
     {
-        $$ = attrtype_node($1, FLOAT, NULL);
+        $$ = attrtype_node($1, FLOAT, 0);
     }
     ;
 
@@ -493,11 +489,11 @@ relattr_or_value
 value_lists
     : '(' value_list ')' ',' value_lists
     {
-        $$ = prepend($2, $4);
+        $$ = prepend($2, $5);
     }
     | '(' value_list ')'
     {
-        $$ = list_node($1);
+        $$ = list_node($2);
     }
     ;
 
@@ -613,8 +609,8 @@ void RippleDBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm) {
         /* If a query was successfully read, interpret it */
         if (yyparse() == 0 && parse_tree != NULL) {
             NODE *n = parse_tree;
-            for (; n != NULL; n = n->u.next) {
-                if ((rc = interp(n->u.curr))) {
+            for (; n != NULL; n = n->u.LIST.next) {
+                if (n->u.LIST.curr != NULL && (rc = interp(n->u.LIST.curr))) {
                     PrintError(rc);
                     if (rc < 0)
                         bExit = TRUE;
@@ -622,6 +618,87 @@ void RippleDBparse(PF_Manager &pfm, SM_Manager &smm, QL_Manager &qlm) {
             }
         }
     }
+}
+
+//
+// Functions for printing the various structures to an output stream
+//
+ostream &operator<<(ostream &s, const AttrInfo &ai) {
+    return s << " attrName=" << ai.attrName << " attrType="
+             << (ai.attrType == INT ? "INT" :
+                 ai.attrType == FLOAT ? "FLOAT" : "STRING")
+             << " attrLength=" << ai.attrLength;
+}
+
+ostream &operator<<(ostream &s, const RelAttr &qa) {
+    return s << (qa.relName ? qa.relName : "NULL") << "." << qa.attrName;
+}
+
+ostream &operator<<(ostream &s, const Condition &c) {
+    s << "\n      lhsAttr:" << c.lhsAttr << "\n" << "      op=" << c.op << "\n";
+    if (c.bRhsIsAttr)
+        s << "      bRhsIsAttr=TRUE \n      rhsAttr:" << c.rhsAttr;
+    else
+        s << "      bRshIsAttr=FALSE\n      rhsValue:" << c.rhsValue;
+    return s;
+}
+
+ostream &operator<<(ostream &s, const Value &v) {
+    s << "AttrType: " << v.type;
+    switch (v.type) {
+        case INT:
+            s << " *(int *)data=" << *(int *)v.data;
+            break;
+        case FLOAT:
+            s << " *(float *)data=" << *(float *)v.data;
+            break;
+        case STRING:
+            s << " (char *)data=" << (char *)v.data;
+            break;
+    }
+    return s;
+}
+
+ostream &operator<<(ostream &s, const CompOp &op) {
+    switch (op) {
+        case EQ_OP:
+            s << " =";
+            break;
+        case NE_OP:
+            s << " <>";
+            break;
+        case LT_OP:
+            s << " <";
+            break;
+        case LE_OP:
+            s << " <=";
+            break;
+        case GT_OP:
+            s << " >";
+            break;
+        case GE_OP:
+            s << " >=";
+            break;
+        case NO_OP:
+            s << " NO_OP";
+            break;
+    }
+    return s;
+}
+
+ostream &operator<<(ostream &s, const AttrType &at) {
+    switch (at) {
+        case INT:
+            s << "INT";
+            break;
+        case FLOAT:
+            s << "FLOAT";
+            break;
+        case STRING:
+            s << "STRING";
+            break;
+    }
+    return s;
 }
 
 /*

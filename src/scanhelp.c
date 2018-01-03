@@ -90,7 +90,7 @@ static int get_id(char *s) {
     if (!strcmp(string, "desc"))      return yylval.ival = RW_DESC;
     if (!strcmp(string, "index"))     return yylval.ival = RW_INDEX;
     if (!strcmp(string, "and"))       return yylval.ival = RW_AND;
-    if (!strcmp(string, "date"))      return yylval.ival = RW_DATA;
+    if (!strcmp(string, "date"))      return yylval.ival = RW_DATE;
     if (!strcmp(string, "float"))     return yylval.ival = RW_FLOAT;
     if (!strcmp(string, "foreign"))   return yylval.ival = RW_FOREIGN;
     if (!strcmp(string, "references"))return yylval.ival = RW_REFERENCES;

@@ -37,7 +37,7 @@ static int mk_fields(NODE *list, int max, Field fields[]);
 static int parse_format_string(char *format_string, AttrType *type, int *len);
 static int mk_rel_attrs(NODE *list, int max, RelAttr relAttrs[]);
 static int mk_relations(NODE *list, int max, char *relations[]);
-static int mk_setters(NODE *list, int max, RelAttr relAttr[], Value rhsValue[], RelAttr rhsRelAttr[], int bIsValue[]);
+static int mk_setters(NODE *list, int max, RelAttr relAttr[], Value rhsValue[]);
 static int mk_conditions(NODE *list, int max, Condition conditions[]);
 static int mk_values(NODE *list, int max, Value values[]);
 static void mk_value(NODE *node, Value &value);
@@ -59,12 +59,12 @@ RC interp(NODE *n) {
             errval = pSmm->DropDb(n->u.DROPDATABASE.dbname);
             break;
 
-        case N_SHOWDATABASES: /* for ShowDatabases() */
-            errval = pSmm->ShowDatabases();
+        case N_SHOWDATABASES: /* for ShowDbs() */
+            errval = pSmm->ShowDbs();
             break;
 
         case N_USEDATABASE: /* for OpenDb() */
-            errval = pSmm->UseDatabase(n->u.USEDATABASE.dbname);
+            errval = pSmm->OpenDb(n->u.USEDATABASE.dbname);
             break;
 
         case N_SHOWTABLES: /* for ShowTables() */
@@ -72,7 +72,7 @@ RC interp(NODE *n) {
             break;
 
         case N_CREATETABLE: { /* for CreateTable() */
-            int nattrs;
+            int nfields;
             Field fields[MAXATTRS];
 
             /* Make sure relation name isn't too long */
@@ -122,21 +122,21 @@ RC interp(NODE *n) {
             Condition conditions[MAXATTRS];
 
             /* Make a list of RelAttrs suitable for sending to Query */
-            nSelAttrs = mk_rel_attrs(n->u.QUERY.relattrlist, MAXATTRS, relAttrs);
+            nSelAttrs = mk_rel_attrs(n->u.SELECT.relattrlist, MAXATTRS, relAttrs);
             if (nSelAttrs < 0) {
                 print_error((char*)"select", nSelAttrs);
                 break;
             }
 
             /* Make a list of relation names suitable for sending to Query */
-            nRelations = mk_relations(n->u.QUERY.rellist, MAXATTRS, relations);
+            nRelations = mk_relations(n->u.SELECT.rellist, MAXATTRS, relations);
             if (nRelations < 0) {
                 print_error((char*)"select", nRelations);
                 break;
             }
 
             /* Make a list of Conditions suitable for sending to Query */
-            nConditions = mk_conditions(n->u.QUERY.conditionlist, MAXATTRS, conditions);
+            nConditions = mk_conditions(n->u.SELECT.conditionlist, MAXATTRS, conditions);
             if (nConditions < 0) {
                 print_error((char*)"select", nConditions);
                 break;
@@ -204,7 +204,7 @@ RC interp(NODE *n) {
             }
 
             /* Make the call to update */
-            errval = pQlm->Update(n->u.UPDATE.relname, nSetters, relAttr, bIsValue, rhsRelAttr, rhsValue, nConditions, conditions);
+            errval = pQlm->Update(n->u.UPDATE.relname, nSetters, relAttr, rhsValue, nConditions, conditions);
             break;
         }
 
@@ -239,9 +239,9 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
         if (i == max) return E_TOOMANY;
         field = list -> u.LIST.curr;
         /* Make sure the attribute name isn't too long */
-        fields[i].attr.attrname = NULL;
-        fields[i].isNotNull = u.FIELD.isNotNull;
-        fields[i].primaryKeyCount = 0;
+        fields[i].attr.attrName = NULL;
+        fields[i].isNotNull = attr -> u.FIELD.isNotNull;
+        fields[i].nPrimaryKey = 0;
         fields[i].foreignKey = NULL;
         if (field -> u.FIELD.attrType != NULL) {
             attr = field -> u.FIELD.attrType;
@@ -261,7 +261,7 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
                     len = sizeof(int);
                     break;
                 case STRING:
-                    len = *(int*)attr -> u.ATTRTYPE.length;
+                    len = attr -> u.ATTRTYPE.length;
                     if (len < 1 || len > MAXSTRINGLEN) return E_INVSTRLEN;
                     break;
             }
@@ -272,7 +272,7 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
         } else if (field -> u.FIELD.primaryKeyList != NULL) {
             primaryKey = field -> u.FIELD.primaryKeyList;
             for (; primaryKey != NULL; primaryKey = primaryKey -> u.LIST.next)
-                fields[i].primaryKeyList[fields[i].primaryKeyCount++] = primaryKey -> u.LIST.curr -> u.ATTR.attrname;
+                fields[i].primaryKeyList[fields[i].nPrimaryKey++] = primaryKey -> u.LIST.curr -> u.ATTR.attrname;
         } else {
             fields[i].foreignKey = field -> u.FIELD.foreignKey;
             fields[i].refRel = field -> u.FIELD.refRel;

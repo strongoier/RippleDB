@@ -170,7 +170,7 @@ typedef struct node{
         } VALUE;
         /* field node */
         struct {
-            struct node *attrtype;
+            struct node *attrType;
             bool isNotNull;
             struct node *primaryKeyList;
             char *foreignKey;
@@ -186,7 +186,7 @@ typedef struct node{
         struct {
             char *attrname;
             AttrType type;
-            struct node *length;
+            int length;
         } ATTRTYPE;
         /* attribute node */
         struct {
@@ -213,23 +213,23 @@ NODE *drop_database_node(char *dbname);
 NODE *show_databases_node();
 NODE *use_database_node(char *dbname);
 NODE *show_tables_node();
-NODE *create_table_node(char *relname, NODE *attrlist);
+NODE *create_table_node(char *relname, NODE *fieldlist);
 NODE *drop_table_node(char *relname);
 NODE *desc_table_node(char *relname);
 NODE *create_index_node(char *relname, char *attrname);
 NODE *drop_index_node(char *relname, char *attrname);
 NODE *print_node(char *relname);
 NODE *select_node(NODE *relattrlist, NODE *rellist, NODE *conditionlist);
-NODE *insert_node(char *relname, NODE *valuelist);
+NODE *insert_node(char *relname, NODE *valuelists);
 NODE *delete_node(char *relname, NODE *conditionlist);
-NODE *update_node(char *relname, NODE *relattr, NODE *value, NODE *conditionlist);
+NODE *update_node(char *relname, NODE *setterlist, NODE *conditionlist);
 NODE *relattr_node(char *relname, char *attrname);
 NODE *condition_node(NODE *lhsRelattr, CompOp op, NODE *rhsRelattrOrValue);
 NODE *relattr_or_value_node(NODE *relattr, NODE *value);
 NODE *value_node(AttrType type, void *value);
 NODE *field_node(NODE *attrType, bool isNotNull, NODE *primaryKeyList, char *foreignKey, char *refRel, char *refAttr);
 NODE *setter_node(char *attrname, NODE *value);
-NODE *attrtype_node(char *attrname, char *type);
+NODE *attrtype_node(char *attrname, AttrType type, int length);
 NODE *attr_node(char *attrname);
 NODE *relation_node(char *relname);
 NODE *list_node(NODE *n);
