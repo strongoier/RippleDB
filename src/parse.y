@@ -195,6 +195,8 @@ command
     | createindex
     | dropindex
     | print
+    | select_func
+    | select_group
     | select
     | insert
     | delete

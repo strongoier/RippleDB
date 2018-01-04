@@ -156,21 +156,51 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
                     return strcmp((char*)valueA, (char*)valueB) <= 0;
                 case GE_OP:
                     return strcmp((char*)valueA, (char*)valueB) >= 0;
+                case LIKE_OP:
+                    return like_match((char*)valueB - 1, (char*)valueA - 1);
             }
             break;
     }
     return true;
 }
 
-/*bool Attr::like_match(char* pattern, char* text) {
+bool Attr::like_match(char* originalPattern, char* text) {
     bool possible[MAXSTRINGLEN][MAXSTRINGLEN];
-    int lenPattern = strlen(pattern + 1);
+    int lenOriginalPattern = strlen(originalPattern + 1);
     int lenText = strlen(text + 1);
+    char pattern[MAXSTRINGLEN];
+    memset(pattern, 0, sizeof pattern);
+    int lenPattern = 0;
+    for (int i = 1; i <= lenOriginalPattern; ++i) {
+        if (originalPattern[i] == '%') {
+            pattern[++lenPattern] = 1;
+        } else if (originalPattern[i] == '_') {
+            pattern[++lenPattern] = 2;
+        } else if (originalPattern[i] == '\\') {
+            if (originalPattern[i + 1]) {
+                pattern[++lenPattern] = originalPattern[i + 1];
+                ++i;
+            }
+        } else {
+            pattern[++lenPattern] = originalPattern[i];
+        }
+    }
+    memset(possible, false, sizeof possible);
     possible[0][0] = true;
     for (int i = 1; i <= lenPattern; ++i) {
-
+        if (pattern[i] == 1) {
+            possible[i][0] = possible[i - 1][0];
+        }
+        for (int j = 1; j <= lenText; ++j) {
+            if (pattern[i] == 1) {
+                possible[i][j] = possible[i - 1][j] || possible[i - 1][j - 1] || possible[i][j - 1];
+            } else if (pattern[i] == 2 || pattern[i] == text[j]) {
+                possible[i][j] = possible[i - 1][j - 1];
+            }
+        }
     }
-}*/
+    return possible[lenPattern][lenText];
+}
 
 int Attr::lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value) {
     int half, middle, begin = 0;

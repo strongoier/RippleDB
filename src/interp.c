@@ -340,10 +340,10 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
                     len = sizeof(float);
                     break;
                 case DATE:
-                    len = sizeof(int);
+                    len = 11;
                     break;
                 case STRING:
-                    len = attr -> u.ATTRTYPE.length;
+                    len = attr -> u.ATTRTYPE.length + 1;
                     if (len < 1 || len > MAXSTRINGLEN) return E_INVSTRLEN;
                     break;
             }
@@ -368,7 +368,7 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
                     if (!strcmp(fields[i].primaryKeyList[j], fields[i].primaryKeyList[k]))
                         return E_DUPLICATEPRIMARY;
         } else {
-            if (strlen(attr -> u.FIELD.foreignKey) > MAXNAME)
+            if (strlen(field -> u.FIELD.foreignKey) > MAXNAME)
                 return E_TOOLONG;
             bool found = false;
             for (j = 0; !found && j < nameCount; ++j)

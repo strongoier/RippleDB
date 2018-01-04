@@ -598,7 +598,7 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
             if ((rc = ixManager.OpenIndex(relName, indexNo, relIndexHandle))) {
                 return rc;
             }
-            cerr << attrs[i].indexNo << " " << rid << endl;
+            // cerr << attrs[i].indexNo << " " << rid << endl;
             if ((rc = relIndexHandle.InsertEntry(values[i].data, rid))) {
                 return rc;
             }
@@ -610,16 +610,16 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
     delete[] tuple;
 
     // print
-    cout << "Insert\n";
+    /*cout << "Insert\n";
     cout << "   relName = " << relName << "\n";
     cout << "   nValues = " << nValues << "\n";
     for (int i = 0; i < nValues; i++)
         cout << "   values[" << i << "]:" << values[i] << "\n";
     
-    cout << "\n";
-    if ((rc = smManager.Print(relName))) {
+    cout << "\n";*/
+    /*if ((rc = smManager.Print(relName))) {
         return rc;
-    }
+    }*/
 
     return 0;
 }
@@ -814,6 +814,7 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
         if (*(char*)(rhsValues[i].data) == 0) {
             rhsValues[i].type = iters[i]->attrType;
         }
+        // todo
         // 类型不一致，报错
         if (iters[i]->attrType != rhsValues[i].type) {
             cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
@@ -1230,6 +1231,7 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
     // 检查右侧属性或值
     if (condition.bRhsIsAttr == 0) {
         // 如果右侧为字面值
+        // todo 
         // 类型不一致，报错
         if (attrCat.attrType != condition.rhsValue.type) {
             return QL_ATTRTYPEWRONG;
@@ -1318,6 +1320,7 @@ int ToLevel(CompOp op) {
         case LE_OP:
         case GE_OP:
             return 1;
+        case LIKE_OP:
         case NE_OP:
         case NO_OP:
         case LIKE_OP:
