@@ -26,7 +26,8 @@ static char* QL_WarnMsg[] = {
     (char*)"attr is null",
     (char*)"QL_PRIMARYKEYREPEAT",
     (char*)"QL_STRINGLENGTHWRONG",
-    (char*)"QL_FOREIGNKEYNOTEXIST"
+    (char*)"QL_FOREIGNKEYNOTEXIST",
+    (char*)"date format error"
 };
 
 //

@@ -46,7 +46,7 @@ RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAt
 //
 // Handle the select clause
 //
-RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
+RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, const char * const relations[], int nConditions, Condition conditions[]) {
     RC rc;
     int attrCount;
     // check whether a db is open
@@ -219,8 +219,6 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
     }
     // 检查属性信息
     for (int i = 0; i < nValues; ++i) {
-        // 判断日期类型是否合法
-        // todo
         // 判断非空属性是否一致
         if (attrs[i].isNotNull && *(char*)(values[i].data) == 0) {
             return QL_ATTRISNULL;
@@ -228,6 +226,33 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
         // 如果值为空，将值的类型转化为相应类型
         if (*(char*)(values[i].data) == 0) {
             values[i].type = attrs[i].attrType;
+        }
+        // 判断int给了float
+        if (attrs[i].attrType == FLOAT && values[i].type == INT) {
+            values[i].type = FLOAT;
+            *(float*)((char*)values[i].data + 1) = *(int*)((char*)values[i].data + 1);
+        }
+        // 判断日期类型是否合法
+        if (attrs[i].attrType == DATE && values[i].type == STRING) {
+            values[i].type = DATE;
+            if (strlen((char*)values[i].data + 1) != 10) {
+                return QL_DATEFORMATERROR;
+            }
+            for (int j = 1; j <= 10; ++j) {
+                char c = *((char*)values[i].data + j);
+                if (j == 5 || j == 8) {
+                    if (c != '-') return QL_DATEFORMATERROR;
+                } else {
+                    if (c < '0' || c > '9') return QL_DATEFORMATERROR;
+                }
+            }
+            int yyyy, mm, dd;
+            sscanf((char*)values[i].data + 1, "%d-%d-%d", &yyyy, &mm, &dd);
+            if (dd < 1 || mm < 1 || mm > 12) return QL_DATEFORMATERROR;
+            int end2 = yyyy % 4 == 0 && yyyy % 100 != 0 || yyyy % 400 == 0 ? 29 : 28;            
+            if (mm == 2 && dd > end2) return QL_DATEFORMATERROR;
+            if ((mm == 1 || mm == 3 || mm == 5 || mm == 7 || mm == 8 || mm == 10 || mm == 12) && dd > 31) return QL_DATEFORMATERROR;
+            if ((mm == 4 || mm == 6 || mm == 9 || mm == 11) && dd > 30) return QL_DATEFORMATERROR;
         }
         // 判断类型是否一致
         if (values[i].type != attrs[i].attrType) {
@@ -391,7 +416,7 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
 //
 // Delete from the relName all tuples that satisfy conditions
 //
-RC QL_Manager::Delete(const char *relName, int nConditions, const Condition conditions[]) {
+RC QL_Manager::Delete(const char *relName, int nConditions, Condition conditions[]) {
     RC rc;
     // check whether a db is open
     if ((rc = CheckSMManagerIsOpen())) {
@@ -536,7 +561,7 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
 //
 // Update from the relName all tuples that satisfy conditions
 //
-RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[], Value rhsValues[], int nConditions, const Condition conditions[]) {
+RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[], Value rhsValues[], int nConditions, Condition conditions[]) {
     RC rc;
     // 判断数据库是否被打开
     if ((rc = CheckSMManagerIsOpen())) {
@@ -575,10 +600,37 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
         if (iters[i]->isNotNull && *(char*)(rhsValues[i].data) == 0) {
             return QL_ATTRISNULL;
         }
+        // 如果值为空，将值的类型转化为相应类型
         if (*(char*)(rhsValues[i].data) == 0) {
             rhsValues[i].type = iters[i]->attrType;
         }
-        // todo
+        // 判断int给了float
+        if (iters[i]->attrType == FLOAT && rhsValues[i].type == INT) {
+            rhsValues[i].type = FLOAT;
+            *(float*)((char*)rhsValues[i].data + 1) = *(int*)((char*)rhsValues[i].data + 1);
+        }
+        // 判断日期类型是否合法
+        if (iters[i]->attrType == DATE && rhsValues[i].type == STRING) {
+            rhsValues[i].type = DATE;
+            if (strlen((char*)rhsValues[i].data + 1) != 10) {
+                return QL_DATEFORMATERROR;
+            }
+            for (int j = 1; j <= 10; ++j) {
+                char c = *((char*)rhsValues[i].data + j);
+                if (j == 5 || j == 8) {
+                    if (c != '-') return QL_DATEFORMATERROR;
+                } else {
+                    if (c < '0' || c > '9') return QL_DATEFORMATERROR;
+                }
+            }
+            int yyyy, mm, dd;
+            sscanf((char*)rhsValues[i].data + 1, "%d-%d-%d", &yyyy, &mm, &dd);
+            if (dd < 1 || mm < 1 || mm > 12) return QL_DATEFORMATERROR;
+            int end2 = yyyy % 4 == 0 && yyyy % 100 != 0 || yyyy % 400 == 0 ? 29 : 28;            
+            if (mm == 2 && dd > end2) return QL_DATEFORMATERROR;
+            if ((mm == 1 || mm == 3 || mm == 5 || mm == 7 || mm == 8 || mm == 10 || mm == 12) && dd > 31) return QL_DATEFORMATERROR;
+            if ((mm == 4 || mm == 6 || mm == 9 || mm == 11) && dd > 30) return QL_DATEFORMATERROR;
+        }
         // 类型不一致，报错
         if (iters[i]->attrType != rhsValues[i].type) {
             cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
@@ -938,7 +990,7 @@ RC QL_Manager::CheckAttrCats(const RelAttr& relAttr, const std::map<RelCat, std:
 //
 // 将原始单表限定条件（delete 与 update 的 where 字句）集合补充为完整单表限制条件集合
 //
-RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& attrs, int nConditions, const Condition conditions[], vector<FullCondition>& fullConditions) {
+RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& attrs, int nConditions, Condition conditions[], vector<FullCondition>& fullConditions) {
     // 遍历每一个原始条件
     for (int i = 0; i < nConditions; ++i) {
         // 在完整属性集合中查找条件中左属性名是否存在
@@ -966,8 +1018,37 @@ RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& att
             fc.rhsAttr = *rIter;
         } else {
             // 条件右侧为值
-            // 处理日期问题
-            // todo
+            // 如果值为空，将值的类型转化为相应类型
+            if (*(char*)(conditions[i].rhsValue.data) == 0) {
+                conditions[i].rhsValue.type = iter->attrType;
+            }
+            // 判断int给了float
+            if (iter->attrType == FLOAT && conditions[i].rhsValue.type == INT) {
+                conditions[i].rhsValue.type = FLOAT;
+                *(float*)((char*)conditions[i].rhsValue.data + 1) = *(int*)((char*)conditions[i].rhsValue.data + 1);
+            }
+            // 判断日期类型是否合法
+            if (iter->attrType == DATE && conditions[i].rhsValue.type == STRING) {
+                conditions[i].rhsValue.type = DATE;
+                if (strlen((char*)conditions[i].rhsValue.data + 1) != 10) {
+                    return QL_DATEFORMATERROR;
+                }
+                for (int j = 1; j <= 10; ++j) {
+                    char c = *((char*)conditions[i].rhsValue.data + j);
+                    if (j == 5 || j == 8) {
+                        if (c != '-') return QL_DATEFORMATERROR;
+                    } else {
+                        if (c < '0' || c > '9') return QL_DATEFORMATERROR;
+                    }
+                }
+                int yyyy, mm, dd;
+                sscanf((char*)conditions[i].rhsValue.data + 1, "%d-%d-%d", &yyyy, &mm, &dd);
+                if (dd < 1 || mm < 1 || mm > 12) return QL_DATEFORMATERROR;
+                int end2 = yyyy % 4 == 0 && yyyy % 100 != 0 || yyyy % 400 == 0 ? 29 : 28;            
+                if (mm == 2 && dd > end2) return QL_DATEFORMATERROR;
+                if ((mm == 1 || mm == 3 || mm == 5 || mm == 7 || mm == 8 || mm == 10 || mm == 12) && dd > 31) return QL_DATEFORMATERROR;
+                if ((mm == 4 || mm == 6 || mm == 9 || mm == 11) && dd > 30) return QL_DATEFORMATERROR;
+            }
             // 类型不一致，报错
             if (iter->attrType != conditions[i].rhsValue.type) {
                 return QL_ATTRTYPEWRONG;
@@ -982,7 +1063,7 @@ RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& att
 //
 // 将某一原始单表或多表限定条件（select 的 where 字句）集合补充并归类到完整单表与多表限制条件集合
 //
-RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds) {
+RC QL_Manager::GetFullCondition(Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds) {
     RC rc;
     FullCondition fullCondition;
     // 检查左侧属性
@@ -995,7 +1076,41 @@ RC QL_Manager::GetFullCondition(const Condition& condition, const std::map<RelCa
     // 检查右侧属性或值
     if (condition.bRhsIsAttr == 0) {
         // 如果右侧为字面值
-        // todo 
+        // 判断非空属性是否一致
+        if (attrCat.isNotNull && *(char*)(condition.rhsValue.data) == 0) {
+            return QL_ATTRISNULL;
+        }
+        // 如果值为空，将值的类型转化为相应类型
+        if (*(char*)(condition.rhsValue.data) == 0) {
+            condition.rhsValue.type = attrCat.attrType;
+        }
+        // 判断int给了float
+        if (attrCat.attrType == FLOAT && condition.rhsValue.type == INT) {
+            condition.rhsValue.type = FLOAT;
+            *(float*)((char*)condition.rhsValue.data + 1) = *(int*)((char*)condition.rhsValue.data + 1);
+        }
+        // 判断日期类型是否合法
+        if (attrCat.attrType == DATE && condition.rhsValue.type == STRING) {
+            condition.rhsValue.type = DATE;
+            if (strlen((char*)condition.rhsValue.data + 1) != 10) {
+                return QL_DATEFORMATERROR;
+            }
+            for (int j = 1; j <= 10; ++j) {
+                char c = *((char*)condition.rhsValue.data + j);
+                if (j == 5 || j == 8) {
+                    if (c != '-') return QL_DATEFORMATERROR;
+                } else {
+                    if (c < '0' || c > '9') return QL_DATEFORMATERROR;
+                }
+            }
+            int yyyy, mm, dd;
+            sscanf((char*)condition.rhsValue.data + 1, "%d-%d-%d", &yyyy, &mm, &dd);
+            if (dd < 1 || mm < 1 || mm > 12) return QL_DATEFORMATERROR;
+            int end2 = yyyy % 4 == 0 && yyyy % 100 != 0 || yyyy % 400 == 0 ? 29 : 28;            
+            if (mm == 2 && dd > end2) return QL_DATEFORMATERROR;
+            if ((mm == 1 || mm == 3 || mm == 5 || mm == 7 || mm == 8 || mm == 10 || mm == 12) && dd > 31) return QL_DATEFORMATERROR;
+            if ((mm == 4 || mm == 6 || mm == 9 || mm == 11) && dd > 30) return QL_DATEFORMATERROR;
+        }
         // 类型不一致，报错
         if (attrCat.attrType != condition.rhsValue.type) {
             return QL_ATTRTYPEWRONG;
