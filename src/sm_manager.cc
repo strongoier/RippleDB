@@ -385,7 +385,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     delete[] recordData;
     // update relcat
     recordData = new char[RelCat::SIZE];
-    RelCat(relName, recordSize, attrs.size(), 0).WriteRecordData(recordData);
+    RelCat(relName, recordSize, attrs.size(), indexCount).WriteRecordData(recordData);
     if ((rc = relcatFileHandle.InsertRec(recordData, rid))) {
         return rc;
     }

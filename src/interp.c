@@ -510,6 +510,13 @@ static int mk_values(NODE *list, int max, Value values[]) {
  * mk_value: converts a single value node into a Value
  */
 static void mk_value(NODE *node, Value &value) {
+    if (node == NULL) {
+        value.type = STRING;
+        value.data = new char[5];
+        for (int i = 0; i < 5; ++i)
+            *((char*)value.data + i) = 0;
+        return;
+    }
     value.type = node->u.VALUE.type;
     switch (value.type) {
         case INT:
