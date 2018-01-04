@@ -36,7 +36,7 @@ RC IX_IndexHandle::DeleteEntry(void *pData, const RID &rid) {
         IX_ERROR(IX_INDEXHANDLECLOSED)
 
     char tmp[300];
-    memmove(tmp, pData, treeHeader->attrLength);
+    memmove(tmp, pData, treeHeader->attrLength + 1);
     memmove(tmp + treeHeader->attrLength + 1, &rid, sizeof(RID));
 
     if ((rc = treeHeader->Delete((char*)tmp)))

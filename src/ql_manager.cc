@@ -362,7 +362,7 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
             if ((rc = ixManager.OpenIndex(relName, indexNo, relIndexHandle))) {
                 return rc;
             }
-            cerr << rid << endl;
+            cerr << attrs[i].indexNo << " " << rid << endl;
             if ((rc = relIndexHandle.InsertEntry(values[i].data, rid))) {
                 return rc;
             }
@@ -438,8 +438,12 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
             if ((rc = ixManager.OpenIndex(relName, attr.indexNo, indexHandle))) {
                 return rc;
             }
+            IX_IndexHandle nullHandle;
+            if ((rc = ixManager.OpenIndex(relName, attr.indexNo + 1, nullHandle))) {
+                return rc;
+            }
             for (const auto& rid : rids) {
-                cerr << rid << endl;
+                cerr << attr.indexNo << " " << rid << endl;
                 RM_Record record;
                 if ((rc = rmFileHandle.GetRec(rid, record))) {
                     return rc;
@@ -448,11 +452,20 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
                 if ((rc = record.GetData(recordData))) {
                     return rc;
                 }
-                if ((rc = indexHandle.DeleteEntry(recordData + attr.offset, rid))) {
-                    return rc;
+                if (*(char*)(recordData + attr.offset) == 0) {
+                    if ((rc = nullHandle.DeleteEntry(recordData + attr.offset, rid))) {
+                        return rc;
+                    }
+                } else {
+                    if ((rc = indexHandle.DeleteEntry(recordData + attr.offset, rid))) {
+                        return rc;
+                    }
                 }
             }
             if ((rc = ixManager.CloseIndex(indexHandle))) {
+                return rc;
+            }
+            if ((rc = ixManager.CloseIndex(nullHandle))) {
                 return rc;
             }
         }
@@ -523,7 +536,7 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
 //
 // Update from the relName all tuples that satisfy conditions
 //
-RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[], const Value rhsValues[], int nConditions, const Condition conditions[]) {
+RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[], Value rhsValues[], int nConditions, const Condition conditions[]) {
     RC rc;
     // 判断数据库是否被打开
     if ((rc = CheckSMManagerIsOpen())) {
@@ -558,14 +571,17 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
         if (iters[i] == attrs.end()) {
             return QL_ATTRNOTFOUND;
         }
+        // 判断非空属性是否一致
+        if (iters[i]->isNotNull && *(char*)(rhsValues[i].data) == 0) {
+            return QL_ATTRISNULL;
+        }
+        if (*(char*)(rhsValues[i].data) == 0) {
+            rhsValues[i].type = iters[i]->attrType;
+        }
         // 类型不一致，报错
         if (iters[i]->attrType != rhsValues[i].type) {
             cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
             return QL_ATTRTYPEWRONG;
-        }
-        // 判断非空属性是否一致
-        if (iters[i]->isNotNull && *(char*)(rhsValues[i].data) == 0) {
-            return QL_ATTRISNULL;
         }
         // 判断字符串类型长度是否合法
         if (iters[i]->attrType == STRING && strlen((char*)(rhsValues[i].data) + 1) >= iters[i]->attrLength) {
@@ -621,11 +637,18 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     if ((rc = GetRidSet(relName, rmFileHandle, fullConditions, rids))) {
         return rc;
     }
+    if (rids.size() > 1 && primaryKeyModifyCount > 0) {
+        return QL_PRIMARYKEYREPEAT;
+    }
     // 更新索引
     for (int i = 0; i < nSetters; ++i) {
         if (iters[i]->indexNo != -1) {
             IX_IndexHandle indexHandle;
             if ((rc = ixManager.OpenIndex(relName, iters[i]->indexNo, indexHandle))) {
+                return rc;
+            }
+            IX_IndexHandle nullHandle;
+            if ((rc = ixManager.OpenIndex(relName, iters[i]->indexNo + 1, nullHandle))) {
                 return rc;
             }
             for (const auto& rid : rids) {
@@ -637,25 +660,42 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
                 if ((rc = record.GetData(recordData))) {
                     return rc;
                 }
-                if ((rc = indexHandle.DeleteEntry(recordData + iters[i]->offset, rid))) {
-                    return rc;
+                if (Attr::CompareAttr(iters[i]->attrType, iters[i]->attrLength, recordData + iters[i]->offset, EQ_OP, rhsValues[i].data)) {
+                    continue;
                 }
-                IX_IndexScan indexScan;
-                if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, rhsValues[i].data))) {
-                    return rc;
+                if (iters[i]->primaryKey > 0) {
+                    IX_IndexScan indexScan;
+                    if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, rhsValues[i].data))) {
+                        return rc;
+                    }
+                    RID r;
+                    if ((rc = indexScan.GetNextEntry(r)) && rc != IX_EOF) {
+                        return rc;
+                    }
+                    if (rc != IX_EOF) {
+                        return QL_PRIMARYKEYREPEAT;
+                    }
+                    if ((rc = indexScan.CloseScan())) {
+                        return rc;
+                    }
                 }
-                RID r;
-                if ((rc = indexScan.GetNextEntry(r)) && rc != IX_EOF) {
-                    return rc;
+                if (*(char*)(recordData + iters[i]->offset) == 0) {
+                    if ((rc = nullHandle.DeleteEntry(recordData + iters[i]->offset, rid))) {
+                        return rc;
+                    }
+                } else {
+                    if ((rc = indexHandle.DeleteEntry(recordData + iters[i]->offset, rid))) {
+                        return rc;
+                    }
                 }
-                if (rc != IX_EOF) {
-                    return QL_PRIMARYKEYREPEAT;
-                }
-                if ((rc = indexScan.CloseScan())) {
-                    return rc;
-                }
-                if ((rc = indexHandle.InsertEntry(rhsValues[i].data, rid))) {
-                    return rc;
+                if (*(char*)(rhsValues[i].data) == 0) {
+                    if ((rc = nullHandle.InsertEntry(rhsValues[i].data, rid))) {
+                        return rc;
+                    }
+                } else {
+                    if ((rc = indexHandle.InsertEntry(rhsValues[i].data, rid))) {
+                        return rc;
+                    }
                 }
             }
             if ((rc = ixManager.CloseIndex(indexHandle))) {
