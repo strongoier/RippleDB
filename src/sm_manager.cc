@@ -18,6 +18,8 @@
 using namespace std;
 
 SM_Manager::SM_Manager(IX_Manager &ixm, RM_Manager &rmm) : ixm(ixm), rmm(rmm), isOpen(false) {
+    *zero = 1;
+    *(int*)(zero + 1) = 0;
 }
 
 SM_Manager::~SM_Manager() {
@@ -241,7 +243,7 @@ RC SM_Manager::ShowTables() {
     }
     // set up relcat file scan
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(relcatFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+    if ((rc = fileScan.OpenScan(relcatFileHandle, INT, sizeof(int), 0, NO_OP, zero))) {
         return rc;
     }
     // print each record
@@ -276,7 +278,10 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
     }
     // check whether relation relName already exists
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(relcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(relcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     RM_Record relCatRec;
@@ -323,6 +328,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
                     if (!strcmp(attrs[k].attrName, fields[i].primaryKeyList[j])) {
                         attrs[k].primaryKey = ++count;
                         attrs[k].indexNo = indexCount;
+                        attrs[k].isNotNull = 1;
                         indexCount += 2;
                         if ((rc = ixm.CreateIndex(relName, attrs[k].indexNo, attrs[k].attrType, attrs[k].attrLength))) {
                             return rc;
@@ -402,6 +408,9 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
                         attr.attrType == FLOAT ? "FLOAT" :
                         attr.attrType == DATE ? "DATE" : "STRING")
              << " " << attr.attrLength;
+        if (attr.isNotNull) {
+            cout << " NOT NULL";
+        }
         if (attr.primaryKey > 0) {
             cout << " PRIMARY KEY";
         }
@@ -434,7 +443,10 @@ RC SM_Manager::DropTable(const char* relName) {
     }
     // find all attributes of relation relName in attrcat
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     while (true) {
@@ -507,6 +519,9 @@ RC SM_Manager::DescTable(const char* relName) {
                         attr.attrType == FLOAT ? "FLOAT" :
                         attr.attrType == DATE ? "DATE" : "STRING")
              << " " << attr.attrLength;
+        if (attr.isNotNull) {
+            cout << " NOT NULL";
+        }
         if (attr.primaryKey > 0) {
             cout << " PRIMARY KEY";
         }
@@ -539,7 +554,10 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
     RelCat relCat(relCatData);
     // find (relName, attrName) in attrcat
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     while (true) {
@@ -602,7 +620,7 @@ RC SM_Manager::CreateIndex(const char* relName, const char* attrName) {
         if ((rc = rmm.OpenFile(relName, relFileHandle))) {
             return rc;
         }
-        if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+        if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, zero))) {
             return rc;
         }
         while (true) {
@@ -666,7 +684,10 @@ RC SM_Manager::DropIndex(const char* relName, const char* attrName) {
     }
     // find (relName, attrName) in attrcat
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     while (true) {
@@ -755,7 +776,7 @@ RC SM_Manager::Print(const char* relName) {
         return rc;
     }
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, NULL))) {
+    if ((rc = fileScan.OpenScan(relFileHandle, INT, sizeof(int), 0, NO_OP, zero))) {
         return rc;
     }
     // print each record
@@ -791,7 +812,10 @@ RC SM_Manager::Print(const char* relName) {
 RC SM_Manager::CheckRelExist(const char* relName, RM_Record& relCatRec) {
     RC rc;
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(relcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(relcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     if ((rc = fileScan.GetNextRec(relCatRec)) != 0 && rc != RM_EOF) {
@@ -809,7 +833,10 @@ RC SM_Manager::CheckRelExist(const char* relName, RM_Record& relCatRec) {
 RC SM_Manager::GetAttrs(const char* relName, vector<AttrCat>& attrs) {
     RC rc;
     RM_FileScan fileScan;
-    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relName))) {
+    char relNameValue[MAXNAME + 1];
+    *relNameValue = 1;
+    strcpy(relNameValue + 1, relName);
+    if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
     while (true) {

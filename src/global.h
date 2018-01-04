@@ -117,7 +117,7 @@ enum FuncType {
 class Attr {
 public:
     static void DeleteValue(AttrType attrType, void* value);
-    static void SetAttr(char* destination, AttrType attrType, void* value);
+    //static void SetAttr(char* destination, AttrType attrType, void* value);
     static bool CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
     static bool CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, CompOp compOp, void* valueB);
     static int lower_bound(AttrType attrType, int attrLength, char* first, int len, char* value);

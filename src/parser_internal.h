@@ -193,7 +193,7 @@ typedef struct node{
         /* field node */
         struct {
             struct node *attrType;
-            bool isNotNull;
+            int isNotNull;
             struct node *primaryKeyList;
             char *foreignKey;
             char *refRel;
@@ -252,7 +252,7 @@ NODE *relattr_node(char *relname, char *attrname);
 NODE *condition_node(NODE *lhsRelattr, CompOp op, NODE *rhsRelattrOrValue);
 NODE *relattr_or_value_node(NODE *relattr, NODE *value);
 NODE *value_node(AttrType type, void *value);
-NODE *field_node(NODE *attrType, bool isNotNull, NODE *primaryKeyList, char *foreignKey, char *refRel, char *refAttr);
+NODE *field_node(NODE *attrType, int isNotNull, NODE *primaryKeyList, char *foreignKey, char *refRel, char *refAttr);
 NODE *setter_node(char *attrname, NODE *value);
 NODE *attrtype_node(char *attrname, AttrType type, int length);
 NODE *attr_node(char *attrname);

@@ -232,7 +232,7 @@ NODE *value_node(AttrType type, void *value) {
     return n;
 }
 
-NODE *field_node(NODE *attrType, bool isNotNull, NODE *primaryKeyList, char *foreignKey, char *refRel, char *refAttr) {
+NODE *field_node(NODE *attrType, int isNotNull, NODE *primaryKeyList, char *foreignKey, char *refRel, char *refAttr) {
     NODE *n = newnode(N_FIELD);
     n -> u.FIELD.attrType = attrType;
     n -> u.FIELD.isNotNull = isNotNull;

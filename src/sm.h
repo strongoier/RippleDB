@@ -66,6 +66,7 @@ private:
     RM_FileHandle relcatFileHandle; // fileHandle for relcat
     RM_FileHandle attrcatFileHandle; // fileHandle for attrcat
     bool isOpen; // whether a db is open
+    char zero[5]; // for scan all
 };
 
 //

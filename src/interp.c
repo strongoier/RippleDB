@@ -322,7 +322,7 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
         field = list -> u.LIST.curr;
         /* Make sure the attribute name isn't too long */
         fields[i].attr.attrName = NULL;
-        fields[i].isNotNull = attr -> u.FIELD.isNotNull;
+        fields[i].isNotNull = field -> u.FIELD.isNotNull;
         fields[i].nPrimaryKey = 0;
         fields[i].foreignKey = NULL;
         if (field -> u.FIELD.attrType != NULL) {

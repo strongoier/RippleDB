@@ -146,5 +146,9 @@ void QL_PrintError(RC rc);
 #define QL_RELMULTIAPPEAR   (START_QL_WARN + 5)  // relation variables to distinguish multiple appearances
 #define QL_RELNOTFOUND      (START_QL_WARN + 6)  // relation not found
 #define QL_ATTRMULTIAPPEAR  (START_QL_WARN + 7)  // attribute multi appear
+#define QL_ATTRISNULL       (START_QL_WARN + 8)  // attr is null
+#define QL_PRIMARYKEYREPEAT (START_QL_WARN + 9)
+#define QL_STRINGLENGTHWRONG (START_QL_WARN + 10)
+#define QL_FOREIGNKEYNOTEXIST (START_QL_WARN + 11)
 
 #endif

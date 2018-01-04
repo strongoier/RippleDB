@@ -35,6 +35,14 @@ QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm) : rmMa
 //
 QL_Manager::~QL_Manager() {}
 
+RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
+    return OK_RC;
+}
+
+RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAttr relAttrGroup, int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
+    return OK_RC;
+}
+
 //
 // Handle the select clause
 //
@@ -135,7 +143,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
             attributes[index].attrLength = attr.attrLength;
             cerr << attributes[index].attrLength << endl;
             attributes[index].indexNo = attr.indexNo;
-            tupleLength += attr.attrLength;
+            tupleLength += attr.attrLength + 1;
             ++index;
         }
     }
@@ -146,8 +154,8 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
         int pos = 0;
         for (auto& rel : attrs) {
             for (auto& attr : rel.second) {
-                memcpy(tuple + pos, item[rel.first] + attr.offset, attr.attrLength);
-                pos += attr.attrLength;
+                memcpy(tuple + pos, item[rel.first] + attr.offset, attr.attrLength + 1);
+                pos += attr.attrLength + 1;
             }
         }
         printer.Print(cout, tuple);
@@ -181,38 +189,154 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
 //
 RC QL_Manager::Insert(const char *relName, int nValues, const Value values[]) {
     RC rc;
-    // check whether a db is open
+    // 检查数据库是否打开
     if ((rc = CheckSMManagerIsOpen())) {
         return rc;
     }
-    // find relation name in relCat
+    // 检查数据表是否存在
     RelCat relCat;
     if ((rc = CheckRelCat(relName, relCat))) {
         return rc;
     }
-    // check nValues == attrCount
+    // 检查属性个数是否一致
     if (nValues != relCat.attrCount) {
         return QL_ATTRSNUMBERWRONG;
     }
-    // get attr info in the relation
+    // 获取属性详细信息
     vector<AttrCat> attrs;
     if ((rc = smManager.GetAttrs(relName, attrs))) {
         return rc;
     }
-    // check the type info
+    // 判断主键个数
+    int primaryKeyCount = 0;
+    int primaryKeyTupleLength = 0;
+    for (const auto& attr: attrs) {
+        if (attr.primaryKey > 0) {
+            primaryKeyTupleLength += attr.attrLength;
+            if (attr.primaryKey > primaryKeyCount)
+                primaryKeyCount = attr.primaryKey;
+        }
+    }
+    // 检查属性信息
     for (int i = 0; i < nValues; ++i) {
+        // 判断日期类型是否合法
+        // todo
+        // 判断类型是否一致
         if (values[i].type != attrs[i].attrType) {
             return QL_ATTRTYPEWRONG;
         }
+        // 判断非空属性是否一致
+        if (attrs[i].isNotNull && *(char*)(values[i].data) == 0) {
+            return QL_ATTRISNULL;
+        }
+        // 判断字符串类型长度是否合法
+        if (attrs[i].attrType == STRING && strlen((char*)(values[i].data) + 1) >= attrs[i].attrLength) {
+            return QL_STRINGLENGTHWRONG;
+        }
+        // 判断单主键是否重复
+        if (attrs[i].primaryKey > 0 && primaryKeyCount == 1) {
+            IX_IndexHandle indexHandle;
+            if ((rc = ixManager.OpenIndex(relName, attrs[i].indexNo, indexHandle))) {
+                return rc;
+            }
+            IX_IndexScan indexScan;
+            if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, values[i].data))) {
+                return rc;
+            }
+            RID rid;
+            // 如果重复，报错
+            if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
+                return rc;
+            }
+            if (rc != IX_EOF) {
+                return QL_PRIMARYKEYREPEAT;
+            }
+            if ((rc = indexScan.CloseScan())) {
+                return rc;
+            }
+            if ((rc = ixManager.CloseIndex(indexHandle))) {
+                return rc;
+            }
+        }
+        // 判断外键合法性
+        if (attrs[i].refrel[0] != 0) {
+            // 获取外键属性详细信息
+            vector<AttrCat> refAttrs;
+            if ((rc = smManager.GetAttrs(attrs[i].refrel, refAttrs))) {
+                return rc;
+            }
+            auto iter = find_if(refAttrs.begin(), refAttrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, attrs[i].refattr) == 0; });
+            IX_IndexHandle indexHandle;
+            if ((rc = ixManager.OpenIndex(attrs[i].refrel, iter->indexNo, indexHandle))) {
+                return rc;
+            }
+            IX_IndexScan indexScan;
+            if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, values[i].data))) {
+                return rc;
+            }
+            RID rid;
+            // 如果不存在，报错
+            if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
+                return rc;
+            }
+            if (rc == IX_EOF) {
+                return QL_FOREIGNKEYNOTEXIST;
+            }
+            if ((rc = indexScan.CloseScan())) {
+                return rc;
+            }
+            if ((rc = ixManager.CloseIndex(indexHandle))) {
+                return rc;
+            }
+        }
     }
-
-    // construct the tuple
+    // 判断多重主键是否重复
+    if (primaryKeyCount > 1) {
+        // 清零 ！！！
+        char *key = new char[primaryKeyTupleLength];
+        memset(key, 0, primaryKeyTupleLength);
+        // 构造
+        int offset = 0;
+        for (int i = 1; i <= primaryKeyCount; ++i) {
+            for (int j = 0; j < nValues; ++j) {
+                if (attrs[j].primaryKey == i) {
+                    memcpy(key + offset, values[j].data, attrs[j].attrLength + 1);
+                    offset += attrs[j].attrLength + 1;
+                    break;
+                }
+            }
+        }
+        IX_IndexHandle indexHandle;
+        if ((rc = ixManager.OpenIndex(relName, 0, indexHandle))) {
+            return rc;
+        }
+        IX_IndexScan indexScan;
+        if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, key))) {
+            return rc;
+        }
+        RID rid;
+        // 如果重复，报错
+        if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
+            return QL_PRIMARYKEYREPEAT;
+        }
+        if ((rc = indexScan.CloseScan())) {
+            return rc;
+        }
+        // 插入
+        if ((rc = indexHandle.InsertEntry(key, RID(0, 0)))) {
+            return rc;
+        }
+        if ((rc = ixManager.CloseIndex(indexHandle))) {
+            return rc;
+        }
+        delete[] key;
+    }
+    // 构造记录数据
     char *tuple = new char[relCat.tupleLength];
     for (int i = 0; i < nValues; ++i) {
-        Attr::SetAttr(tuple + attrs[i].offset, attrs[i].attrType, values[i].data);
+        memcpy(tuple + attrs[i].offset, values[i].data, attrs[i].attrLength + 1);
     }
-
-    // insert record into file
+    // 插入到记录文件
     RM_FileHandle relFileHandle;
     if ((rc = rmManager.OpenFile(relName, relFileHandle))) {
         return rc;
@@ -221,17 +345,17 @@ RC QL_Manager::Insert(const char *relName, int nValues, const Value values[]) {
     if ((rc = relFileHandle.InsertRec(tuple, rid))) {
         return rc;
     }
-    cerr << "rid: " << rid << endl;
     if ((rc = rmManager.CloseFile(relFileHandle))) {
         return rc;
     }
-
-    // insert index into file
+    // 插入到索引文件
     IX_IndexHandle relIndexHandle;
     for (int i = 0; i < nValues; ++i) {
-        // check whether the attr has an index
+        // 判断该属性是否有索引
         if (attrs[i].indexNo != -1) {
-            if ((rc = ixManager.OpenIndex(relName, attrs[i].indexNo, relIndexHandle))) {
+            // 按照是否为空插入不同的索引中
+            int indexNo = *(char*)(values[i].data) == 0 ? attrs[i].indexNo + 1 : attrs[i].indexNo;
+            if ((rc = ixManager.OpenIndex(relName, indexNo, relIndexHandle))) {
                 return rc;
             }
             if ((rc = relIndexHandle.InsertEntry(values[i].data, rid))) {
@@ -278,6 +402,16 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
     if ((rc = smManager.GetAttrs(relName, attrs))) {
         return rc;
     }
+    // 判断主键个数
+    int primaryKeyCount = 0;
+    int primaryKeyTupleLength = 0;
+    for (const auto& attr: attrs) {
+        if (attr.primaryKey > 0) {
+            primaryKeyTupleLength += attr.attrLength;
+            if (attr.primaryKey > primaryKeyCount)
+                primaryKeyCount = attr.primaryKey;
+        }
+    }
     // check the conditions
     vector<FullCondition> fullConditions;
     if ((rc = GetFullConditions(relName, attrs, nConditions, conditions, fullConditions))) {
@@ -315,6 +449,44 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
             if ((rc = ixManager.CloseIndex(indexHandle))) {
                 return rc;
             }
+        }
+    }
+    // 如果有多重主键的话，删除多重主键
+    if (primaryKeyCount > 1) {
+        IX_IndexHandle primaryHandle;
+        if ((rc = ixManager.OpenIndex(relName, 0, primaryHandle))) {
+            return rc;
+        }
+        char *key = new char[primaryKeyTupleLength];
+        for (const auto& rid : rids) {
+            RM_Record record;
+            if ((rc = rmFileHandle.GetRec(rid, record))) {
+                return rc;
+            }
+            char *recordData;
+            if ((rc = record.GetData(recordData))) {
+                return rc;
+            }
+            // !!!
+            memset(key, 0, primaryKeyTupleLength);
+            // 构造
+            int offset = 0;
+            for (int i = 1; i <= primaryKeyCount; ++i) {
+                for (int j = 0; j < attrs.size(); ++j) {
+                    if (attrs[j].primaryKey == i) {
+                        memcpy(key + offset, recordData + attrs[j].offset, attrs[j].attrLength + 1);
+                        offset += attrs[j].attrLength + 1;
+                        break;
+                    }
+                }
+            }
+            if ((rc = primaryHandle.DeleteEntry(key, RID(0, 0)))) {
+                return rc;
+            }
+        }
+        delete[] key;
+        if ((rc = ixManager.CloseIndex(primaryHandle))) {
+            return rc;
         }
     }
     // delete records
@@ -361,16 +533,72 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     if ((rc = smManager.GetAttrs(relName, attrs))) {
         return rc;
     }
-    // 检查被更新属性是否合法
+    // 判断主键个数
+    int primaryKeyCount = 0;
+    int primaryKeyTupleLength = 0;
+        for (const auto& attr: attrs) {
+            if (attr.primaryKey > 0) {
+                primaryKeyTupleLength += attr.attrLength;
+                if (attr.primaryKey > primaryKeyCount)
+                    primaryKeyCount = attr.primaryKey;
+            }
+        }
+    // 检查被更新属性是否合法，同时判断是否影响主键
+    int primaryKeyModifyCount = 0;
     vector<AttrCat>::iterator *iters = new vector<AttrCat>::iterator[nSetters];
     for (int i = 0; i < nSetters; ++i) {
         iters[i] = find_if(attrs.begin(), attrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, updAttrs[i].attrName) == 0; });
+        // 找不到，报错
         if (iters[i] == attrs.end()) {
             return QL_ATTRNOTFOUND;
         }
+        // 类型不一致，报错
         if (iters[i]->attrType != rhsValues[i].type) {
             cout << i << " " << iters[i]->attrType << " " << rhsValues[i].type << endl;
             return QL_ATTRTYPEWRONG;
+        }
+        // 判断非空属性是否一致
+        if (iters[i]->isNotNull && *(char*)(rhsValues[i].data) == 0) {
+            return QL_ATTRISNULL;
+        }
+        // 判断字符串类型长度是否合法
+        if (iters[i]->attrType == STRING && strlen((char*)(rhsValues[i].data) + 1) >= iters[i]->attrLength) {
+            return QL_STRINGLENGTHWRONG;
+        }
+        // 判断单主键是否重复 更新时判断
+        // 判断外键合法性
+        if (iters[i]->refrel[0] != 0) {
+            // 获取外键属性详细信息
+            vector<AttrCat> refAttrs;
+            if ((rc = smManager.GetAttrs(iters[i]->refrel, refAttrs))) {
+                return rc;
+            }
+            auto iter = find_if(refAttrs.begin(), refAttrs.end(), [&](const AttrCat& item) { return strcmp(item.attrName, iters[i]->refattr) == 0; });
+            IX_IndexHandle indexHandle;
+            if ((rc = ixManager.OpenIndex(iters[i]->refrel, iter->indexNo, indexHandle))) {
+                return rc;
+            }
+            IX_IndexScan indexScan;
+            if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, rhsValues[i].data))) {
+                return rc;
+            }
+            RID rid;
+            // 如果不存在，报错
+            if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
+                return rc;
+            }
+            if (rc == IX_EOF) {
+                return QL_FOREIGNKEYNOTEXIST;
+            }
+            if ((rc = indexScan.CloseScan())) {
+                return rc;
+            }
+            if ((rc = ixManager.CloseIndex(indexHandle))) {
+                return rc;
+            }
+        }
+        if (iters[i]->primaryKey > 0) {
+            ++primaryKeyModifyCount;
         }
     }
     // 检查限制条件并补充信息
@@ -406,6 +634,20 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
                 if ((rc = indexHandle.DeleteEntry(recordData + iters[i]->offset, rid))) {
                     return rc;
                 }
+                IX_IndexScan indexScan;
+                if ((rc = indexScan.OpenScan(indexHandle, EQ_OP, rhsValues[i].data))) {
+                    return rc;
+                }
+                RID r;
+                if ((rc = indexScan.GetNextEntry(r)) && rc != IX_EOF) {
+                    return rc;
+                }
+                if (rc != IX_EOF) {
+                    return QL_PRIMARYKEYREPEAT;
+                }
+                if ((rc = indexScan.CloseScan())) {
+                    return rc;
+                }
                 if ((rc = indexHandle.InsertEntry(rhsValues[i].data, rid))) {
                     return rc;
                 }
@@ -414,6 +656,15 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
                 return rc;
             }
         }
+    }
+    // 如果有多重主键并被影响的话，更新多重主键
+    char *key;
+    IX_IndexHandle primaryHandle;
+    if (primaryKeyCount > 1 && primaryKeyModifyCount > 0) {
+        if ((rc = ixManager.OpenIndex(relName, 0, primaryHandle))) {
+            return rc;
+        }
+        key = new char[primaryKeyTupleLength];
     }
     // 更新记录文件
     for (const auto &rid : rids) {
@@ -425,10 +676,54 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
         if ((rc = record.GetData(recordData))) {
             return rc;
         }
+        // 删除原有多重主键
+        if (primaryKeyCount > 1 && primaryKeyModifyCount > 0) {
+            // !!!
+            memset(key, 0, primaryKeyTupleLength);
+            // 构造
+            int offset = 0;
+            for (int i = 1; i <= primaryKeyCount; ++i) {
+                for (int j = 0; j < attrs.size(); ++j) {
+                    if (attrs[j].primaryKey == i) {
+                        memcpy(key + offset, recordData + attrs[j].offset, attrs[j].attrLength + 1);
+                        offset += attrs[j].attrLength + 1;
+                        break;
+                    }
+                }
+            }
+            if ((rc = primaryHandle.DeleteEntry(key, RID(0, 0)))) {
+                return rc;
+            }
+        }
         for (int i = 0; i < nSetters; ++i) {
-            Attr::SetAttr(recordData + iters[i]->offset, iters[i]->attrType, rhsValues[i].data);
+            memcpy(recordData + iters[i]->offset, rhsValues[i].data, iters[i]->attrLength + 1);
+        }
+        // 插入多重主键
+        if (primaryKeyCount > 1 && primaryKeyModifyCount > 0) {
+            // !!!
+            memset(key, 0, primaryKeyTupleLength);
+            // 构造
+            int offset = 0;
+            for (int i = 1; i <= primaryKeyCount; ++i) {
+                for (int j = 0; j < attrs.size(); ++j) {
+                    if (attrs[j].primaryKey == i) {
+                        memcpy(key + offset, recordData + attrs[j].offset, attrs[j].attrLength + 1);
+                        offset += attrs[j].attrLength + 1;
+                        break;
+                    }
+                }
+            }
+            if ((rc = primaryHandle.InsertEntry(key, RID(0, 0)))) {
+                return rc;
+            }
         }
         if ((rc = rmFileHandle.UpdateRec(record))) {
+            return rc;
+        }
+    }
+    if (primaryKeyCount > 1 && primaryKeyModifyCount > 0) {
+        delete[] key;
+        if ((rc = ixManager.CloseIndex(primaryHandle))) {
             return rc;
         }
     }
@@ -624,6 +919,8 @@ RC QL_Manager::GetFullConditions(const char* relName, const vector<AttrCat>& att
             fc.rhsAttr = *rIter;
         } else {
             // 条件右侧为值
+            // 处理日期问题
+            // todo
             // 类型不一致，报错
             if (iter->attrType != conditions[i].rhsValue.type) {
                 return QL_ATTRTYPEWRONG;
@@ -788,8 +1085,9 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
     } else {
         // 发现属性带有索引
         // 先使用索引缩小查找范围，然后确定最终集合
+        int indexNo = *(char*)fullConditions[index].rhsValue.data == 0 ? fullConditions[index].lhsAttr.indexNo + 1 : fullConditions[index].lhsAttr.indexNo;
         IX_IndexHandle indexHandle;
-        if ((rc = ixManager.OpenIndex(relName, fullConditions[index].lhsAttr.indexNo, indexHandle))) {
+        if ((rc = ixManager.OpenIndex(relName, indexNo, indexHandle))) {
             return rc;
         }
         IX_IndexScan indexScan;
@@ -875,8 +1173,9 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
     } else {
         // 发现属性带有索引
         // 先使用索引缩小查找范围，然后确定最终集合
+        int indexNo = *(char*)fullConditions[index].rhsValue.data == 0 ? fullConditions[index].lhsAttr.indexNo + 1 : fullConditions[index].lhsAttr.indexNo;
         IX_IndexHandle indexHandle;
-        if ((rc = ixManager.OpenIndex(relCat.relName, fullConditions[index].lhsAttr.indexNo, indexHandle))) {
+        if ((rc = ixManager.OpenIndex(relCat.relName, indexNo, indexHandle))) {
             return rc;
         }
         IX_IndexScan indexScan;
@@ -927,7 +1226,17 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
 RC QL_Manager::CheckFullConditions(char* recordData, const std::vector<FullCondition>& fullConditions, bool& result) {
     result = true;
     for (unsigned int i = 0; result && i < fullConditions.size(); ++i) {
-        result = result && Attr::CompareAttr(fullConditions[i].lhsAttr.attrType, fullConditions[i].lhsAttr.attrLength, recordData + fullConditions[i].lhsAttr.offset, fullConditions[i].op, fullConditions[i].bRhsIsAttr ? recordData + fullConditions[i].rhsAttr.offset : fullConditions[i].rhsValue.data);
+        if (*(char*)fullConditions[i].rhsValue.data == 0) {
+            if (fullConditions[i].op == EQ_OP) {
+                result = result && *(recordData + fullConditions[i].lhsAttr.offset) == 0;
+            } else if (fullConditions[i].op == NE_OP) {
+                result = result && *(recordData + fullConditions[i].lhsAttr.offset) == 1;
+            }
+        } else if (*(recordData + fullConditions[i].lhsAttr.offset) == 0) {
+            result = false;
+        } else {
+            result = result && Attr::CompareAttr(fullConditions[i].lhsAttr.attrType, fullConditions[i].lhsAttr.attrLength, recordData + fullConditions[i].lhsAttr.offset, fullConditions[i].op, fullConditions[i].bRhsIsAttr ? recordData + fullConditions[i].rhsAttr.offset : fullConditions[i].rhsValue.data);
+        }
     }
     return OK_RC;
 }
@@ -938,7 +1247,11 @@ RC QL_Manager::CheckFullConditions(char* recordData, const std::vector<FullCondi
 bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<FullCondition>& conditions) {
     bool ret = true;
     for (unsigned int i = 0; ret && i < conditions.size(); ++i) {
-        ret = ret && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, aData + conditions[i].lhsAttr.offset, conditions[i].op, bData + conditions[i].rhsAttr.offset);
+        if (*(aData + conditions[i].lhsAttr.offset) == 0 || *(bData + conditions[i].rhsAttr.offset) == 0) {
+            ret = false;
+        } else {
+            ret = ret && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, aData + conditions[i].lhsAttr.offset, conditions[i].op, bData + conditions[i].rhsAttr.offset);
+        }
     }
     return ret;
 }

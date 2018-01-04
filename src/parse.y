@@ -361,19 +361,19 @@ field_list
 field
     : attrtype
     {
-        $$ = field_node($1, false, NULL, NULL, NULL, NULL);
+        $$ = field_node($1, 0, NULL, NULL, NULL, NULL);
     }
     | attrtype RW_NOT RW_NULL
     {
-        $$ = field_node($1, true, NULL, NULL, NULL, NULL);
+        $$ = field_node($1, 1, NULL, NULL, NULL, NULL);
     }
     | RW_PRIMARY RW_KEY '(' attr_list ')'
     {
-        $$ = field_node(NULL, false, $4, NULL, NULL, NULL);
+        $$ = field_node(NULL, 0, $4, NULL, NULL, NULL);
     }
     | RW_FOREIGN RW_KEY '(' T_STRING ')' RW_REFERENCES T_STRING '(' T_STRING ')'
     {
-        $$ = field_node(NULL, false, NULL, $4, $7, $9);
+        $$ = field_node(NULL, 0, NULL, $4, $7, $9);
     }
     ;
 
