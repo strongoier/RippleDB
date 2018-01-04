@@ -30,7 +30,7 @@ public:
         int   nRelations,                // # relations in from clause
         const char * const relations[],  // relations in from clause
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC SelectGroup  (FuncType func,      // func type
         const RelAttr relAttrFunc,       // func(relAttrFunc)
@@ -38,14 +38,14 @@ public:
         int   nRelations,                // # relations in from clause
         const char * const relations[],  // relations in from clause
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC Select  (int nSelAttrs,           // # attrs in select clause
         const RelAttr selAttrs[],        // attrs in select clause
         int   nRelations,                // # relations in from clause
         const char * const relations[],  // relations in from clause
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC Insert  (const char *relName,     // relation to insert into
         int   nValues,                   // # values
@@ -53,14 +53,14 @@ public:
 
     RC Delete  (const char *relName,     // relation to delete from
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC Update  (const char *relName,     // relation to update
         int   nSetters,                  // number of setters
         const RelAttr updAttrs[],        // attribute to update
         Value rhsValues[],         // value to set attr equal to
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
 private:
     RM_Manager& rmManager;
@@ -95,12 +95,12 @@ private:
     //
     // 将原始单表限定条件（delete 与 update 的 where 字句）集合补充为完整单表限制条件集合
     //
-    RC GetFullConditions(const char* relName, const std::vector<AttrCat>& attrs, int nConditions, const Condition conditions[], std::vector<FullCondition>& fullConditions);
+    RC GetFullConditions(const char* relName, const std::vector<AttrCat>& attrs, int nConditions, Condition conditions[], std::vector<FullCondition>& fullConditions);
 
     //
     // 将某一原始单表或多表限定条件（select 的 where 字句）集合补充并归类到完整单表与多表限制条件集合
     //
-    RC GetFullCondition(const Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds);
+    RC GetFullCondition(Condition& condition, const std::map<RelCat, std::vector<AttrCat>>& relCats, std::map<RelCat, std::vector<FullCondition>>& singalRelConds, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds);
 
     //
     // 在完整单表限制条件集合中获取最适合扫描的索引项
@@ -150,5 +150,6 @@ void QL_PrintError(RC rc);
 #define QL_PRIMARYKEYREPEAT (START_QL_WARN + 9)
 #define QL_STRINGLENGTHWRONG (START_QL_WARN + 10)
 #define QL_FOREIGNKEYNOTEXIST (START_QL_WARN + 11)
+#define QL_DATEFORMATERROR  (START_QL_WARN + 12)
 
 #endif

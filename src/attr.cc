@@ -14,7 +14,6 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
     const RID& ridA = *(RID*)((char*)valueA + attrLength);
     const RID& ridB = *(RID*)((char*)valueB + attrLength);
     switch (attrType) {
-        case DATE:
         case INT: {
             const int& intA = *(int*)valueA;
             const int& intB = *(int*)valueB;
@@ -57,6 +56,7 @@ bool Attr::CompareAttrWithRID(AttrType attrType, int attrLength, void* valueA, C
             }
             break;
         }
+        case DATE:
         case PRIMARYKEY:
         case STRING: {
             switch (compOp) {
@@ -102,7 +102,6 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
     valueA = (char*)valueA + 1;
     valueB = (char*)valueB + 1;
     switch (attrType) {
-        case DATE:
         case INT:
             switch (compOp) {
                 case NO_OP:
@@ -139,6 +138,7 @@ bool Attr::CompareAttr(AttrType attrType, int attrLength, void* valueA, CompOp c
                     return *(float*)valueA >= *(float*)valueB;
             }
             break;
+        case DATE:
         case PRIMARYKEY:
         case STRING:
             switch (compOp) {
