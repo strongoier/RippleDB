@@ -10,6 +10,7 @@
 #include <sys/times.h>
 #include <sys/types.h>
 #include <set>
+#include <limits>
 #include <cassert>
 #include <unistd.h>
 #include "global.h"
@@ -36,7 +37,242 @@ QL_Manager::QL_Manager(SM_Manager &smm, IX_Manager &ixm, RM_Manager &rmm) : rmMa
 QL_Manager::~QL_Manager() {}
 
 RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
-    return OK_RC;
+    RC rc;
+    // check whether a db is open
+    if ((rc = CheckSMManagerIsOpen())) {
+        return rc;
+    }
+    // check and get relation info
+    std::map<RelCat, std::vector<AttrCat>> relCats;
+    if ((rc = CheckRelCats(nRelations, relations, relCats))) {
+        return rc;
+    }
+    // get attr info
+    for (auto &item : relCats) {
+        if ((rc = smManager.GetAttrs(item.first.relName, item.second))) {
+            return rc;
+        }
+    }
+    // check whether select's attr exists
+    std::map<RelCat, std::vector<AttrCat>> attrs;
+    if ((rc = CheckAttrCats(relAttrFunc, relCats, attrs))) {
+        return rc;
+    }
+    if (attrs.begin()->second.begin()->attrType != INT && attrs.begin()->second.begin()->attrType != FLOAT) {
+        return QL_ATTRTYPEWRONG;
+    }
+    cerr << "attr" << endl;
+    for (const auto &item : attrs) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+        for (const auto &attr : item.second) {
+            cerr << "        " << attr.attrName << endl;
+        }
+    }
+    // check conditions
+    std::map<RelCat, std::vector<FullCondition>> singalRelConds;
+    std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>> binaryRelConds;
+    for (int i = 0; i < nConditions; ++i) {
+        if ((rc = GetFullCondition(conditions[i], relCats, singalRelConds, binaryRelConds))) {
+            cerr << "cond error" << endl;
+            return rc;
+        }
+    }
+    cerr << "singal" << endl;
+    for (const auto &item : singalRelConds) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+    }
+    cerr << "binary" << endl;
+    for (const auto &item : binaryRelConds) {
+        cerr << "    " << item.first.first.relName << "    " << item.first.second.relName << "    " << item.second.size() << endl;
+    }
+    // get scan data
+    std::map<RelCat, std::vector<char*>> data;
+    for (const auto& item : relCats) {
+        RM_FileHandle relFileHandle;
+        if ((rc = rmManager.OpenFile(item.first.relName, relFileHandle))) {
+            return rc;
+        }
+        if ((rc = GetDataSet(item.first, relFileHandle, singalRelConds[item.first], data[item.first]))) {
+            return rc;
+        }
+        if ((rc = rmManager.CloseFile(relFileHandle))) {
+            return rc;
+        }
+    }
+    cerr << "data" << endl;
+    for (const auto &item : data) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+    }
+    // join
+    std::vector<std::map<RelCat, char*>> joinData{std::map<RelCat, char*>()};
+    if ((rc = GetJoinData(data, binaryRelConds, joinData))) {
+        return rc;
+    }
+    cerr << "join" << endl;
+    cerr << "    " << joinData.size() << endl;
+    // print
+    DataAttrInfo* attributes = new DataAttrInfo[1];
+    int index = 0;
+    int tupleLength = 0;
+    for (const auto& item : attrs) {
+        for (const auto& attr : item.second) {
+            strcpy(attributes[index].relName, attr.relName);
+            strcpy(attributes[index].attrName, attr.attrName);
+            attributes[index].offset = tupleLength;
+            attributes[index].attrType = attr.attrType;
+            attributes[index].attrLength = attr.attrLength;
+            attributes[index].indexNo = attr.indexNo;
+            tupleLength += attr.attrLength + 1;
+            ++index;
+        }
+    }
+    Printer printer(attributes, 1);
+    printer.PrintHeader(cout);
+    char *tuple = new char[tupleLength];
+    *tuple = 1;
+    // 聚集
+    RelCat funcRel = attrs.begin()->first;
+    AttrCat funcAttr = *(attrs.begin()->second.begin());
+    int nullCount = 0;
+    if (attributes[0].attrType == FLOAT) {
+        switch (func) {
+            case SUM: {
+                float result = 0;
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    float tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    result += tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case AVG: {
+                float result = 0;
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    float tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    result += tmp;
+                }
+                result /= joinData.size();
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case MAX: {
+                float result = (numeric_limits<float>::min)();
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    float tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    if (tmp > result)
+                        result = tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case MIN: {
+                float result = (numeric_limits<float>::max)();
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    float tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    if (tmp < result)
+                        result = tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+        }
+    } else if (attributes[0].attrType == INT) {
+        switch (func) {
+            case SUM: {
+                int result = 0;
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    result += tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case AVG: {
+                int result = 0;
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    result += tmp;
+                }
+                result /= joinData.size();
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case MAX: {
+                int result = (numeric_limits<float>::min)();
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    if (tmp > result)
+                        result = tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+            case MIN: {
+                int result = (numeric_limits<float>::max)();
+                for (auto& item : joinData) {
+                    if (*(char*)(item[funcRel] + funcAttr.offset) == 0) {
+                        ++nullCount;
+                        continue;
+                    }
+                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    if (tmp < result)
+                        result = tmp;
+                }
+                memcpy(tuple + 1, &result, 4);
+                break;
+            }
+        }
+    }
+    if (nullCount != joinData.size())
+        printer.Print(cout, tuple);
+    delete[] tuple;
+    printer.PrintFooter(cout);
+    
+    for (auto& item : data) {
+        for (auto & i : item.second) {
+            delete[] i;
+        }
+    }
+
+    // print
+    cout << "Select\n";
+    cout << "   SelAttr = " << relAttrFunc << "\n";
+    cout << "   nRelations = " << nRelations << "\n";
+    for (int i = 0; i < nRelations; i++)
+        cout << "   relations[" << i << "] " << relations[i] << "\n";
+    cout << "   nCondtions = " << nConditions << "\n";
+    for (int i = 0; i < nConditions; i++)
+        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+
+    return 0;
 }
 
 RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAttr relAttrGroup, int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
@@ -1083,8 +1319,9 @@ int ToLevel(CompOp op) {
         case GE_OP:
             return 1;
         case NE_OP:
-            return 2;
         case NO_OP:
+        case LIKE_OP:
+            return 2;
             return 2;
         default:
             return 2;
