@@ -6,6 +6,7 @@ cmake-build-debug/*
 .idea/*
 .vscode/*
 src/test/*
+src/orderDB/*
 src/redbase
 src/dbcreate
 src/dbdestroy

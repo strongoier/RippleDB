@@ -49,7 +49,7 @@ public:
 
     RC Insert  (const char *relName,     // relation to insert into
         int   nValues,                   // # values
-        const Value values[]);           // values to insert
+        Value values[]);           // values to insert
 
     RC Delete  (const char *relName,     // relation to delete from
         int   nConditions,               // # conditions in where clause

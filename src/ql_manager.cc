@@ -187,7 +187,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
 //
 // Insert the values into relName
 //
-RC QL_Manager::Insert(const char *relName, int nValues, const Value values[]) {
+RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
     RC rc;
     // 检查数据库是否打开
     if ((rc = CheckSMManagerIsOpen())) {
@@ -221,13 +221,17 @@ RC QL_Manager::Insert(const char *relName, int nValues, const Value values[]) {
     for (int i = 0; i < nValues; ++i) {
         // 判断日期类型是否合法
         // todo
-        // 判断类型是否一致
-        if (values[i].type != attrs[i].attrType) {
-            return QL_ATTRTYPEWRONG;
-        }
         // 判断非空属性是否一致
         if (attrs[i].isNotNull && *(char*)(values[i].data) == 0) {
             return QL_ATTRISNULL;
+        }
+        // 如果值为空，将值的类型转化为相应类型
+        if (*(char*)(values[i].data) == 0) {
+            values[i].type = attrs[i].attrType;
+        }
+        // 判断类型是否一致
+        if (values[i].type != attrs[i].attrType) {
+            return QL_ATTRTYPEWRONG;
         }
         // 判断字符串类型长度是否合法
         if (attrs[i].attrType == STRING && strlen((char*)(values[i].data) + 1) >= attrs[i].attrLength) {
@@ -358,6 +362,7 @@ RC QL_Manager::Insert(const char *relName, int nValues, const Value values[]) {
             if ((rc = ixManager.OpenIndex(relName, indexNo, relIndexHandle))) {
                 return rc;
             }
+            cerr << rid << endl;
             if ((rc = relIndexHandle.InsertEntry(values[i].data, rid))) {
                 return rc;
             }
@@ -434,6 +439,7 @@ RC QL_Manager::Delete(const char *relName, int nConditions, const Condition cond
                 return rc;
             }
             for (const auto& rid : rids) {
+                cerr << rid << endl;
                 RM_Record record;
                 if ((rc = rmFileHandle.GetRec(rid, record))) {
                     return rc;
@@ -1144,7 +1150,7 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             indexLevel = ToLevel(fullConditions[i].op);
         }
     }
-    if (indexLevel == -1) {
+    if (index == -1) {
         // 如果没有属性带有索引，使用记录文件暴力扫描
         RM_FileScan rmFileScan;
         if ((rc = rmFileScan.OpenScan(rmFileHandle, fullConditions))) {
