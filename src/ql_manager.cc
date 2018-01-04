@@ -201,7 +201,7 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
                         ++nullCount;
                         continue;
                     }
-                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    int tmp = *(int*)(item[funcRel] + funcAttr.offset + 1);
                     result += tmp;
                 }
                 memcpy(tuple + 1, &result, 4);
@@ -214,7 +214,7 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
                         ++nullCount;
                         continue;
                     }
-                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    int tmp = *(int*)(item[funcRel] + funcAttr.offset + 1);
                     result += tmp;
                 }
                 result /= joinData.size();
@@ -228,7 +228,7 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
                         ++nullCount;
                         continue;
                     }
-                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    int tmp = *(int*)(item[funcRel] + funcAttr.offset + 1);
                     if (tmp > result)
                         result = tmp;
                 }
@@ -242,7 +242,7 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
                         ++nullCount;
                         continue;
                     }
-                    int tmp = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                    int tmp = *(int*)(item[funcRel] + funcAttr.offset + 1);
                     if (tmp < result)
                         result = tmp;
                 }
@@ -587,6 +587,7 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
     }
     if ((rc = rmManager.CloseFile(relFileHandle))) {
         return rc;
+            return 2;
     }
     // 插入到索引文件
     IX_IndexHandle relIndexHandle;
@@ -1323,8 +1324,6 @@ int ToLevel(CompOp op) {
         case LIKE_OP:
         case NE_OP:
         case NO_OP:
-        case LIKE_OP:
-            return 2;
             return 2;
         default:
             return 2;
