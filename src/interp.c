@@ -158,9 +158,16 @@ RC interp(NODE *n) {
             int nConditions = 0;
             Condition conditions[MAXATTRS];
 
-            if (strcmp(n->u.SELECT_GROUP.relattr1->u.RELATTR.relname, n->u.SELECT_GROUP.relattr2->u.RELATTR.relname)) {
-                print_error((char*)"select_group", E_GROUPNOTMATCH);
-                break;
+            if (n->u.SELECT_GROUP.relattr1->u.RELATTR.relname == NULL || n->u.SELECT_GROUP.relattr2->u.RELATTR.relname == NULL) {
+                if (n->u.SELECT_GROUP.relattr1->u.RELATTR.relname != NULL || n->u.SELECT_GROUP.relattr2->u.RELATTR.relname != NULL) {
+                    print_error((char*)"select_group", E_GROUPNOTMATCH);
+                    break;
+                }
+            } else {
+                if (strcmp(n->u.SELECT_GROUP.relattr1->u.RELATTR.relname, n->u.SELECT_GROUP.relattr2->u.RELATTR.relname)) {
+                    print_error((char*)"select_group", E_GROUPNOTMATCH);
+                    break;
+                }
             }
             if (strcmp(n->u.SELECT_GROUP.relattr1->u.RELATTR.attrname, n->u.SELECT_GROUP.relattr2->u.RELATTR.attrname)) {
                 print_error((char*)"select_group", E_GROUPNOTMATCH);
