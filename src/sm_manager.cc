@@ -525,7 +525,7 @@ RC SM_Manager::DescTable(const char* relName) {
              << " " << (attr.attrType == INT ? "INT" :
                         attr.attrType == FLOAT ? "FLOAT" :
                         attr.attrType == DATE ? "DATE" : "STRING")
-             << " " << attr.attrLength;
+             << " " << attr.attrLength - (attr.attrType == STRING || attr.attrType == DATE);
         if (attr.isNotNull) {
             cout << " NOT NULL";
         }

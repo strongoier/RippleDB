@@ -58,7 +58,7 @@ public:
     RC Update  (const char *relName,     // relation to update
         int   nSetters,                  // number of setters
         const RelAttr updAttrs[],        // attribute to update
-        const Value rhsValues[],         // value to set attr equal to
+        Value rhsValues[],         // value to set attr equal to
         int   nConditions,               // # conditions in where clause
         const Condition conditions[]);   // conditions in where clause
 

@@ -340,10 +340,10 @@ static int mk_fields(NODE *list, int max, Field fields[]) {
                     len = sizeof(float);
                     break;
                 case DATE:
-                    len = sizeof(int);
+                    len = 11;
                     break;
                 case STRING:
-                    len = attr -> u.ATTRTYPE.length;
+                    len = attr -> u.ATTRTYPE.length + 1;
                     if (len < 1 || len > MAXSTRINGLEN) return E_INVSTRLEN;
                     break;
             }
