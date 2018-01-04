@@ -517,9 +517,9 @@ static void mk_value(NODE *node, Value &value) {
             break;
         case STRING:
             if (node->u.VALUE.sval == NULL) {
-                value.data = new char[2];
-                *(char*)value.data = 0;
-                *((char*)value.data + 1) = 0;
+                value.data = new char[5];
+                for (int i = 0; i < 5; ++i)
+                    *((char*)value.data + i) = 0;
             } else {
                 value.data = new char[2 + strlen(node->u.VALUE.sval)];
                 *(char*)value.data = 1;
