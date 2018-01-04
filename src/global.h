@@ -19,6 +19,7 @@ using std::pair;
 #define MAXSTRINGLEN  255               // maximum length of a string-type attribute
 #define MAXATTRS      40                // maximum number of attributes in a relation
 
+#define YYINITDEPTH 100000
 #define YY_SKIP_YYWRAP 1
 #define yywrap() 1
 void yyerror(const char *);

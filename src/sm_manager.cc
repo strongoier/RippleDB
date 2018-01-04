@@ -449,6 +449,7 @@ RC SM_Manager::DropTable(const char* relName) {
     if ((rc = fileScan.OpenScan(attrcatFileHandle, STRING, MAXNAME, 0, EQ_OP, (void*)relNameValue))) {
         return rc;
     }
+    bool multiplePrimaryKey = false;
     while (true) {
         RM_Record attrCatRec;
         if ((rc = fileScan.GetNextRec(attrCatRec)) != 0 && rc != RM_EOF) {
@@ -463,6 +464,9 @@ RC SM_Manager::DropTable(const char* relName) {
         }
         // remove index for attr
         AttrCat attrCat(attrCatData);
+        if (attrCat.primaryKey > 1) {
+            multiplePrimaryKey = true;
+        }
         if (attrCat.indexNo != -1 && (rc = ixm.DestroyIndex(relName, attrCat.indexNo))) {
             return rc;
         }
@@ -478,6 +482,9 @@ RC SM_Manager::DropTable(const char* relName) {
         }
     }
     if ((rc = fileScan.CloseScan())) {
+        return rc;
+    }
+    if (multiplePrimaryKey && (rc = ixm.DestroyIndex(relName, 0))) {
         return rc;
     }
     if ((rc = relcatFileHandle.ForcePages())) {

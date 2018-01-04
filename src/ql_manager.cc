@@ -381,9 +381,9 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
         cout << "   values[" << i << "]:" << values[i] << "\n";
     
     cout << "\n";
-    if ((rc = smManager.Print(relName))) {
+    /*if ((rc = smManager.Print(relName))) {
         return rc;
-    }
+    }*/
 
     return 0;
 }
