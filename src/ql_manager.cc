@@ -276,7 +276,697 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
 }
 
 RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAttr relAttrGroup, int nRelations, const char * const relations[], int nConditions, const Condition conditions[]) {
-    return OK_RC;
+    RC rc;
+    // check whether a db is open
+    if ((rc = CheckSMManagerIsOpen())) {
+        return rc;
+    }
+    // check and get relation info
+    std::map<RelCat, std::vector<AttrCat>> relCats;
+    if ((rc = CheckRelCats(nRelations, relations, relCats))) {
+        return rc;
+    }
+    // get attr info
+    for (auto &item : relCats) {
+        if ((rc = smManager.GetAttrs(item.first.relName, item.second))) {
+            return rc;
+        }
+    }
+    // check whether select's attr exists
+    std::map<RelCat, std::vector<AttrCat>> attrs;
+    if ((rc = CheckAttrCats(relAttrFunc, relCats, attrs))) {
+        return rc;
+    }
+    std::map<RelCat, std::vector<AttrCat>> groupAttrs;
+    if ((rc = CheckAttrCats(relAttrGroup, relCats, groupAttrs))) {
+        return rc;
+    }
+    if (attrs.begin()->second.begin()->attrType != INT && attrs.begin()->second.begin()->attrType != FLOAT) {
+        return QL_ATTRTYPEWRONG;
+    }
+    cerr << "attr" << endl;
+    for (const auto &item : attrs) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+        for (const auto &attr : item.second) {
+            cerr << "        " << attr.attrName << endl;
+        }
+    }
+    // check conditions
+    std::map<RelCat, std::vector<FullCondition>> singalRelConds;
+    std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>> binaryRelConds;
+    for (int i = 0; i < nConditions; ++i) {
+        if ((rc = GetFullCondition(conditions[i], relCats, singalRelConds, binaryRelConds))) {
+            cerr << "cond error" << endl;
+            return rc;
+        }
+    }
+    cerr << "singal" << endl;
+    for (const auto &item : singalRelConds) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+    }
+    cerr << "binary" << endl;
+    for (const auto &item : binaryRelConds) {
+        cerr << "    " << item.first.first.relName << "    " << item.first.second.relName << "    " << item.second.size() << endl;
+    }
+    // get scan data
+    std::map<RelCat, std::vector<char*>> data;
+    for (const auto& item : relCats) {
+        RM_FileHandle relFileHandle;
+        if ((rc = rmManager.OpenFile(item.first.relName, relFileHandle))) {
+            return rc;
+        }
+        if ((rc = GetDataSet(item.first, relFileHandle, singalRelConds[item.first], data[item.first]))) {
+            return rc;
+        }
+        if ((rc = rmManager.CloseFile(relFileHandle))) {
+            return rc;
+        }
+    }
+    cerr << "data" << endl;
+    for (const auto &item : data) {
+        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
+    }
+    // join
+    std::vector<std::map<RelCat, char*>> joinData{std::map<RelCat, char*>()};
+    if ((rc = GetJoinData(data, binaryRelConds, joinData))) {
+        return rc;
+    }
+    cerr << "join" << endl;
+    cerr << "    " << joinData.size() << endl;
+    // print
+    DataAttrInfo* attributes = new DataAttrInfo[2];
+    int index = 0;
+    int tupleLength = 0;
+    for (const auto& item : groupAttrs) {
+        for (const auto& attr : item.second) {
+            strcpy(attributes[index].relName, attr.relName);
+            strcpy(attributes[index].attrName, attr.attrName);
+            attributes[index].offset = tupleLength;
+            attributes[index].attrType = attr.attrType;
+            attributes[index].attrLength = attr.attrLength;
+            attributes[index].indexNo = attr.indexNo;
+            tupleLength += attr.attrLength + 1;
+            ++index;
+        }
+    }
+    for (const auto& item : attrs) {
+        for (const auto& attr : item.second) {
+            strcpy(attributes[index].relName, attr.relName);
+            strcpy(attributes[index].attrName, attr.attrName);
+            attributes[index].offset = tupleLength;
+            attributes[index].attrType = attr.attrType;
+            attributes[index].attrLength = attr.attrLength;
+            attributes[index].indexNo = attr.indexNo;
+            tupleLength += attr.attrLength + 1;
+            ++index;
+        }
+    }
+    Printer printer(attributes, 2);
+    printer.PrintHeader(cout);
+    char *tuple = new char[tupleLength];
+    // 聚集分组
+    RelCat funcRel = attrs.begin()->first;
+    AttrCat funcAttr = *(attrs.begin()->second.begin());
+    RelCat groupRel = groupAttrs.begin()->first;
+    AttrCat groupAttr = *(groupAttrs.begin()->second.begin());
+    switch (groupAttr.attrType) {
+        case INT: {
+            switch (funcAttr.attrType) {
+                case INT: {
+                    map<int, int> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcInt;
+                                } else {
+                                    group[groupInt] += funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<int, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcInt;
+                                    count[groupInt] = 1;
+                                } else {
+                                    group[groupInt] += funcInt;
+                                    count[groupInt] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcInt;
+                                } else {
+                                    if (funcInt < group[groupInt])
+                                        group[groupInt] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcInt;
+                                } else {
+                                    if (funcInt > group[groupInt])
+                                        group[groupInt] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        *(int*)(tuple + attributes[0].offset + 1) = item.first;
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(int*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+                case FLOAT: {
+                    map<int, float> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcFloat;
+                                } else {
+                                    group[groupInt] += funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<int, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcFloat;
+                                    count[groupInt] = 1;
+                                } else {
+                                    group[groupInt] += funcFloat;
+                                    count[groupInt] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcFloat;
+                                } else {
+                                    if (funcFloat < group[groupInt])
+                                        group[groupInt] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                int groupInt = *(int*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupInt);
+                                if (iter == group.end()) {
+                                    group[groupInt] = funcFloat;
+                                } else {
+                                    if (funcFloat > group[groupInt])
+                                        group[groupInt] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        *(int*)(tuple + attributes[0].offset + 1) = item.first;
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(float*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+        case FLOAT: {
+            switch (funcAttr.attrType) {
+                case INT: {
+                    map<float, int> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcInt;
+                                } else {
+                                    group[groupFloat] += funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<int, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcInt;
+                                    count[groupFloat] = 1;
+                                } else {
+                                    group[groupFloat] += funcInt;
+                                    count[groupFloat] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcInt;
+                                } else {
+                                    if (funcInt < group[groupFloat])
+                                        group[groupFloat] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcInt;
+                                } else {
+                                    if (funcInt > group[groupFloat])
+                                        group[groupFloat] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        *(float*)(tuple + attributes[0].offset + 1) = item.first;
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(int*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+                case FLOAT: {
+                    map<float, float> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcFloat;
+                                } else {
+                                    group[groupFloat] += funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<float, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcFloat;
+                                    count[groupFloat] = 1;
+                                } else {
+                                    group[groupFloat] += funcFloat;
+                                    count[groupFloat] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcFloat;
+                                } else {
+                                    if (funcFloat < group[groupFloat])
+                                        group[groupFloat] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                float groupFloat = *(float*)(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupFloat);
+                                if (iter == group.end()) {
+                                    group[groupFloat] = funcFloat;
+                                } else {
+                                    if (funcFloat > group[groupFloat])
+                                        group[groupFloat] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        *(float*)(tuple + attributes[0].offset + 1) = item.first;
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(float*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+        case STRING:
+        case DATE: {
+            switch (funcAttr.attrType) {
+                case INT: {
+                    map<string, int> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcInt;
+                                } else {
+                                    group[groupString] += funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<string, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcInt;
+                                    count[groupString] = 1;
+                                } else {
+                                    group[groupString] += funcInt;
+                                    count[groupString] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcInt;
+                                } else {
+                                    if (funcInt < group[groupString])
+                                        group[groupString] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                int funcInt = *(int*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcInt;
+                                } else {
+                                    if (funcInt > group[groupString])
+                                        group[groupString] = funcInt;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        strcpy(tuple + attributes[0].offset + 1, item.first.c_str());
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(int*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+                case FLOAT: {
+                    map<string, float> group;
+                    switch (func) {
+                        case SUM: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcFloat;
+                                } else {
+                                    group[groupString] += funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case AVG: {
+                            map<string, int> count;
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcFloat;
+                                    count[groupString] = 1;
+                                } else {
+                                    group[groupString] += funcFloat;
+                                    count[groupString] += 1;
+                                }
+                            }
+                            for (auto& item : group) {
+                                item.second /= count[item.first];
+                            }
+                            break;
+                        }
+                        case MIN: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcFloat;
+                                } else {
+                                    if (funcFloat < group[groupString])
+                                        group[groupString] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                        case MAX: {
+                            for (auto & item : joinData) {
+                                if (*(char*)(item[groupRel] + groupAttr.offset) == 0)
+                                    continue;
+                                if (*(char*)(item[funcRel] + funcAttr.offset) == 0)
+                                    continue;
+                                string groupString(item[groupRel] + groupAttr.offset + 1);
+                                float funcFloat = *(float*)(item[funcRel] + funcAttr.offset + 1);
+                                auto iter = group.find(groupString);
+                                if (iter == group.end()) {
+                                    group[groupString] = funcFloat;
+                                } else {
+                                    if (funcFloat > group[groupString])
+                                        group[groupString] = funcFloat;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    for (const auto & item : group) {
+                        memset(tuple, 0, tupleLength);
+                        *(char*)(tuple + attributes[0].offset) = 1;
+                        strcpy(tuple + attributes[0].offset + 1, item.first.c_str());
+                        *(char*)(tuple + attributes[1].offset) = 1;
+                        *(float*)(tuple + attributes[1].offset + 1) = item.second;
+                        printer.Print(cout, tuple);
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    delete[] tuple;
+    printer.PrintFooter(cout);
+    
+    for (auto& item : data) {
+        for (auto & i : item.second) {
+            delete[] i;
+        }
+    }
+
+    // print
+    cout << "Select\n";
+    cout << "   SelAttr = " << relAttrFunc << "\n";
+    cout << "   nRelations = " << nRelations << "\n";
+    for (int i = 0; i < nRelations; i++)
+        cout << "   relations[" << i << "] " << relations[i] << "\n";
+    cout << "   nCondtions = " << nConditions << "\n";
+    for (int i = 0; i < nConditions; i++)
+        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+
+    return 0;
 }
 
 //
