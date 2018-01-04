@@ -30,7 +30,7 @@ public:
         int   nRelations,                // # relations in from clause
         const char * const relations[],  // relations in from clause
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC SelectGroup  (FuncType func,      // func type
         const RelAttr relAttrFunc,       // func(relAttrFunc)
@@ -38,7 +38,7 @@ public:
         int   nRelations,                // # relations in from clause
         const char * const relations[],  // relations in from clause
         int   nConditions,               // # conditions in where clause
-        const Condition conditions[]);   // conditions in where clause
+        Condition conditions[]);   // conditions in where clause
 
     RC Select  (int nSelAttrs,           // # attrs in select clause
         const RelAttr selAttrs[],        // attrs in select clause

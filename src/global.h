@@ -100,7 +100,7 @@ enum CompOp {
 };
 
 int ToLevel(CompOp op);
-// EQ < LT = GT = LE = GE < NE < NO
+// EQ < LT = GT = LE = GE < NE < NO < LIKE
 
 //
 // Function types
