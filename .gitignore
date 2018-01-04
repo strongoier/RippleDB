@@ -11,6 +11,7 @@ src/redbase
 src/dbcreate
 src/dbdestroy
 src/rippledb
+src/data/*
 src/parse.c
 src/scan.c
 src/y.tab.h
