@@ -790,17 +790,19 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 		if (IsValidScanResult(pData, compOp, leaf, index))
 			return OK_RC;
 		
-		if (index != leaf->childNum || !leaf->HaveNextPage()) {
-			leaf = nullptr;
-			return OK_RC;
-		}
+		while (true) {
+			if (index != leaf->childNum || !leaf->HaveNextPage()) {
+				leaf = nullptr;
+				return OK_RC;
+			}
 
-		if ((rc = leaf->NextPage(leaf)))
-			IX_PRINTSTACK
-		index = 0;
-		if (!IsValidScanResult(pData, compOp, leaf, index))
-			leaf = nullptr;
-		return OK_RC;
+			if ((rc = leaf->NextPage(leaf)))
+				IX_PRINTSTACK
+
+			index = leaf->UpperBoundWithRID(pData);
+			if (IsValidScanResult(pData, compOp, leaf, index))
+				return OK_RC;
+		}
 	}
 	
 	if (compOp == GE_OP) {
