@@ -2186,6 +2186,7 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
         }
         // 索引扫描
         while (true) {
+            cerr << "index found" << endl;
             RID rid;
             if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
                 return rc;
@@ -2281,6 +2282,7 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             if (rc == IX_EOF) {
                 break;
             }
+            cerr << "index found" << endl;
             // 判断该条记录是否满足条件
             RM_Record record;
             if ((rc = rmFileHandle.GetRec(rid, record))) {
@@ -2340,6 +2342,7 @@ bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<
         if (*(aData + conditions[i].lhsAttr.offset) == 0 || *(bData + conditions[i].rhsAttr.offset) == 0) {
             ret = false;
         } else {
+            //cerr << *(int*)(aData + conditions[i].lhsAttr.offset + 1) << " " << *(int*)(bData + conditions[i].rhsAttr.offset + 1) << endl;
             ret = ret && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, aData + conditions[i].lhsAttr.offset, conditions[i].op, bData + conditions[i].rhsAttr.offset);
         }
     }
@@ -2352,10 +2355,8 @@ bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<
 RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>>& binaryRelConds, std::vector<std::map<RelCat, char*>>& joinData) {
     // 记录已处理的数据表
     std::set<RelCat> rels;
-    cerr << " join start" << endl;
     // 遍历多表限制条件集合
     for (const auto& conditions : binaryRelConds) {
-        cerr << joinData.size() << endl;
         const RelCat& aRelCat = conditions.first.first;
         const RelCat& bRelCat = conditions.first.second;
         cerr << aRelCat.relName << " " << bRelCat.relName << endl;
@@ -2395,7 +2396,7 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
             std::vector<std::map<RelCat, char*>> tmpJoin;
             for (auto& b : joinData) {
                 for (auto& a : data[aRelCat]) {
-                    if (CheckFullCondition(b[bRelCat], a, conditions.second)) {
+                    if (CheckFullCondition(a, b[bRelCat], conditions.second)) {
                         std::map<RelCat, char*> join = b;
                         join.insert(std::make_pair(aRelCat, a));
                         tmpJoin.emplace_back(join);
@@ -2427,8 +2428,6 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
         const RelCat& relCat = d.first;
         auto iter = rels.find(relCat);
         if (iter == rels.end()) {
-        cerr << joinData.size() << endl;
-        cerr << relCat.relName << endl;
             std::vector<std::map<RelCat, char*>> tmpJoin;
             for (const auto& a : joinData) {
                 for (const auto& b : d.second) {
@@ -2441,7 +2440,5 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
             rels.insert(relCat);
         }
     }
-    cerr << joinData.size() << endl;
-    cerr << "join end" << endl;
     return OK_RC;
 }

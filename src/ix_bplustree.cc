@@ -779,6 +779,7 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 	}
 	
 	if (compOp == GT_OP) {
+		cerr << "GT_OP" << endl;
 		NodeHeader *root;
 		if ((rc = GetPageData(rootPNum, root)))
 			IX_PRINTSTACK
