@@ -1409,9 +1409,9 @@ RC QL_Manager::Delete(const char *relName, int nConditions, Condition conditions
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
     
     cout << "\n";
-    if ((rc = smManager.Print(relName))) {
-        return rc;
-    }
+    //if ((rc = smManager.Print(relName))) {
+    //    return rc;
+    //}
 
     return 0;
 }
@@ -1702,9 +1702,9 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
     
     cout << "\n";
-    if ((rc = smManager.Print(relName))) {
-        return rc;
-    }
+    //if ((rc = smManager.Print(relName))) {
+    //    return rc;
+    //}
 
     return 0;
 }
