@@ -61,29 +61,13 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
     if (attrs.begin()->second.begin()->attrType != INT && attrs.begin()->second.begin()->attrType != FLOAT) {
         return QL_ATTRTYPEWRONG;
     }
-    cerr << "attr" << endl;
-    for (const auto &item : attrs) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-        for (const auto &attr : item.second) {
-            cerr << "        " << attr.attrName << endl;
-        }
-    }
     // check conditions
     std::map<RelCat, std::vector<FullCondition>> singalRelConds;
     std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>> binaryRelConds;
     for (int i = 0; i < nConditions; ++i) {
         if ((rc = GetFullCondition(conditions[i], relCats, singalRelConds, binaryRelConds))) {
-            cerr << "cond error" << endl;
             return rc;
         }
-    }
-    cerr << "singal" << endl;
-    for (const auto &item : singalRelConds) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
-    cerr << "binary" << endl;
-    for (const auto &item : binaryRelConds) {
-        cerr << "    " << item.first.first.relName << "    " << item.first.second.relName << "    " << item.second.size() << endl;
     }
     // get scan data
     std::map<RelCat, std::vector<char*>> data;
@@ -99,17 +83,11 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
             return rc;
         }
     }
-    cerr << "data" << endl;
-    for (const auto &item : data) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
     // join
     std::vector<std::map<RelCat, char*>> joinData{std::map<RelCat, char*>()};
     if ((rc = GetJoinData(data, binaryRelConds, joinData))) {
         return rc;
     }
-    cerr << "join" << endl;
-    cerr << "    " << joinData.size() << endl;
     // print
     DataAttrInfo* attributes = new DataAttrInfo[1];
     int index = 0;
@@ -304,29 +282,13 @@ RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAt
     if (attrs.begin()->second.begin()->attrType != INT && attrs.begin()->second.begin()->attrType != FLOAT) {
         return QL_ATTRTYPEWRONG;
     }
-    cerr << "attr" << endl;
-    for (const auto &item : attrs) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-        for (const auto &attr : item.second) {
-            cerr << "        " << attr.attrName << endl;
-        }
-    }
     // check conditions
     std::map<RelCat, std::vector<FullCondition>> singalRelConds;
     std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>> binaryRelConds;
     for (int i = 0; i < nConditions; ++i) {
         if ((rc = GetFullCondition(conditions[i], relCats, singalRelConds, binaryRelConds))) {
-            cerr << "cond error" << endl;
             return rc;
         }
-    }
-    cerr << "singal" << endl;
-    for (const auto &item : singalRelConds) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
-    cerr << "binary" << endl;
-    for (const auto &item : binaryRelConds) {
-        cerr << "    " << item.first.first.relName << "    " << item.first.second.relName << "    " << item.second.size() << endl;
     }
     // get scan data
     std::map<RelCat, std::vector<char*>> data;
@@ -342,17 +304,11 @@ RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAt
             return rc;
         }
     }
-    cerr << "data" << endl;
-    for (const auto &item : data) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
     // join
     std::vector<std::map<RelCat, char*>> joinData{std::map<RelCat, char*>()};
     if ((rc = GetJoinData(data, binaryRelConds, joinData))) {
         return rc;
     }
-    cerr << "join" << endl;
-    cerr << "    " << joinData.size() << endl;
     // print
     DataAttrInfo* attributes = new DataAttrInfo[2];
     int index = 0;
@@ -1007,29 +963,13 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
             }
         }
     }
-    cerr << "attr" << endl;
-    for (const auto &item : attrs) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-        for (const auto &attr : item.second) {
-            cerr << "        " << attr.attrName << endl;
-        }
-    }
     // check conditions
     std::map<RelCat, std::vector<FullCondition>> singalRelConds;
     std::map<std::pair<RelCat, RelCat>, std::vector<FullCondition>> binaryRelConds;
     for (int i = 0; i < nConditions; ++i) {
         if ((rc = GetFullCondition(conditions[i], relCats, singalRelConds, binaryRelConds))) {
-            cerr << "cond error" << endl;
             return rc;
         }
-    }
-    cerr << "singal" << endl;
-    for (const auto &item : singalRelConds) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
-    cerr << "binary" << endl;
-    for (const auto &item : binaryRelConds) {
-        cerr << "    " << item.first.first.relName << "    " << item.first.second.relName << "    " << item.second.size() << endl;
     }
     // get scan data
     std::map<RelCat, std::vector<char*>> data;
@@ -1045,17 +985,11 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
             return rc;
         }
     }
-    cerr << "data" << endl;
-    for (const auto &item : data) {
-        cerr << "    " << item.first.relName << "    " << item.second.size() << endl;
-    }
     // join
     std::vector<std::map<RelCat, char*>> joinData{std::map<RelCat, char*>()};
     if ((rc = GetJoinData(data, binaryRelConds, joinData))) {
         return rc;
     }
-    cerr << "join" << endl;
-    cerr << "    " << joinData.size() << endl;
     // print
     DataAttrInfo* attributes = new DataAttrInfo[attrCount];
     int index = 0;
@@ -1067,7 +1001,6 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
             attributes[index].offset = tupleLength;
             attributes[index].attrType = attr.attrType;
             attributes[index].attrLength = attr.attrLength;
-            cerr << attributes[index].attrLength << endl;
             attributes[index].indexNo = attr.indexNo;
             tupleLength += attr.attrLength + 1;
             ++index;
@@ -1314,7 +1247,6 @@ RC QL_Manager::Insert(const char *relName, int nValues, Value values[]) {
             if ((rc = ixManager.OpenIndex(relName, indexNo, relIndexHandle))) {
                 return rc;
             }
-            // cerr << attrs[i].indexNo << " " << rid << endl;
             if ((rc = relIndexHandle.InsertEntry(values[i].data, rid))) {
                 return rc;
             }
@@ -1395,7 +1327,6 @@ RC QL_Manager::Delete(const char *relName, int nConditions, Condition conditions
                 return rc;
             }
             for (const auto& rid : rids) {
-                cerr << attr.indexNo << " " << rid << endl;
                 RM_Record record;
                 if ((rc = rmFileHandle.GetRec(rid, record))) {
                     return rc;
@@ -2186,7 +2117,6 @@ RC QL_Manager::GetRidSet(const char* relName, RM_FileHandle& rmFileHandle, const
         }
         // 索引扫描
         while (true) {
-            cerr << "index found" << endl;
             RID rid;
             if ((rc = indexScan.GetNextEntry(rid)) && rc != IX_EOF) {
                 return rc;
@@ -2282,7 +2212,6 @@ RC QL_Manager::GetDataSet(const RelCat& relCat, RM_FileHandle& rmFileHandle, con
             if (rc == IX_EOF) {
                 break;
             }
-            cerr << "index found" << endl;
             // 判断该条记录是否满足条件
             RM_Record record;
             if ((rc = rmFileHandle.GetRec(rid, record))) {
@@ -2342,7 +2271,6 @@ bool QL_Manager::CheckFullCondition(char* aData, char* bData, const std::vector<
         if (*(aData + conditions[i].lhsAttr.offset) == 0 || *(bData + conditions[i].rhsAttr.offset) == 0) {
             ret = false;
         } else {
-            //cerr << *(int*)(aData + conditions[i].lhsAttr.offset + 1) << " " << *(int*)(bData + conditions[i].rhsAttr.offset + 1) << endl;
             ret = ret && Attr::CompareAttr(conditions[i].lhsAttr.attrType, conditions[i].lhsAttr.attrLength, aData + conditions[i].lhsAttr.offset, conditions[i].op, bData + conditions[i].rhsAttr.offset);
         }
     }
@@ -2359,7 +2287,6 @@ RC QL_Manager::GetJoinData(std::map<RelCat, std::vector<char*>>& data, std::map<
     for (const auto& conditions : binaryRelConds) {
         const RelCat& aRelCat = conditions.first.first;
         const RelCat& bRelCat = conditions.first.second;
-        cerr << aRelCat.relName << " " << bRelCat.relName << endl;
         // 判断数据表是否被处理过
         auto aIter = rels.find(aRelCat);
         auto bIter = rels.find(bRelCat);
