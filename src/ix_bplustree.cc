@@ -798,7 +798,8 @@ RC TreeHeader::Search(char *pData, CompOp compOp, NodeHeader *&leaf, int &index)
 
 			if ((rc = leaf->NextPage(leaf)))
 				IX_PRINTSTACK
-
+			cerr << leaf << endl;
+			appendMaxRID(pData);
 			index = leaf->UpperBoundWithRID(pData);
 			if (IsValidScanResult(pData, compOp, leaf, index))
 				return OK_RC;

@@ -22,20 +22,18 @@ LEX            = flex
 # -g - Debugging information
 # -O1 - Basic optimization
 # -Wall - All warnings
-# -DDEBUG_PF - This turns on the LOG file for lots of BufferMgr info
 CFLAGS         = -m32 -g -O1 -Wall -std=c++11 $(INC_DIRS)
 
 #
 # Students: Please modify SOURCES variables as needed.
 #
-PF_SOURCES     = pf_error.cc pf_buffermgr.cc pf_filehandle.cc pf_pagehandle.cc pf_hashtable.cc pf_manager.cc
+PF_SOURCES     = pf_error.cc pf_manager.cc pf_filehandle.cc pf_pagehandle.cc pf_buffermgr.cc pf_hashtable.cc
 RM_SOURCES     = rm_error.cc rm_manager.cc rm_filehandle.cc rm_filescan.cc rm_record.cc attr.cc rid.cc
-IX_SOURCES     = ix_error.cc ix_bplustree.cc ix_manager.cc ix_indexscan.cc ix_indexhandle.cc ix_internal.cc
+IX_SOURCES     = ix_error.cc ix_manager.cc ix_indexhandle.cc ix_indexscan.cc ix_bplustree.cc ix_internal.cc
 SM_SOURCES     = sm_error.cc sm_manager.cc sm_internal.cc printer.cc
 QL_SOURCES     = ql_error.cc ql_manager.cc
 UTILS_SOURCES  = rippledb.cc
 PARSER_SOURCES = scan.c parse.c nodes.c interp.c
-TESTER_SOURCES = rm_test.cc ix_test.cc parser_test.cc
 
 PF_OBJECTS     = $(addprefix $(BUILD_DIR), $(PF_SOURCES:.cc=.o))
 RM_OBJECTS     = $(addprefix $(BUILD_DIR), $(RM_SOURCES:.cc=.o))
@@ -44,10 +42,9 @@ SM_OBJECTS     = $(addprefix $(BUILD_DIR), $(SM_SOURCES:.cc=.o))
 QL_OBJECTS     = $(addprefix $(BUILD_DIR), $(QL_SOURCES:.cc=.o))
 UTILS_OBJECTS  = $(addprefix $(BUILD_DIR), $(UTILS_SOURCES:.cc=.o))
 PARSER_OBJECTS = $(addprefix $(BUILD_DIR), $(PARSER_SOURCES:.c=.o))
-TESTER_OBJECTS = $(addprefix $(BUILD_DIR), $(TESTER_SOURCES:.cc=.o))
 OBJECTS        = $(PF_OBJECTS) $(RM_OBJECTS) $(IX_OBJECTS) \
                  $(SM_OBJECTS) $(QL_OBJECTS) $(PARSER_OBJECTS) \
-                 $(TESTER_OBJECTS) $(UTILS_OBJECTS)
+                 $(UTILS_OBJECTS)
 
 LIBRARY_PF     = $(LIB_DIR)libpf.a
 LIBRARY_RM     = $(LIB_DIR)librm.a
@@ -59,8 +56,7 @@ LIBRARIES      = $(LIBRARY_PF) $(LIBRARY_RM) $(LIBRARY_IX) \
                  $(LIBRARY_SM) $(LIBRARY_QL) $(LIBRARY_PARSER)
 
 UTILS          = $(UTILS_SOURCES:.cc=)
-TESTS          = $(TESTER_SOURCES:.cc=)
-EXECUTABLES    = $(UTILS) $(TESTS)
+EXECUTABLES    = $(UTILS)
 
 LIBS           = -lparser -lql -lsm -lix -lrm -lpf
 
@@ -71,8 +67,6 @@ all: $(LIBRARIES) $(UTILS)
 
 clean:
 	rm -f $(BUILD_DIR)*.o $(BUILD_DIR)*.d y.output y.tab.h parse.c scan.c $(LIBRARIES) $(EXECUTABLES)
-
-testers: all $(TESTS)
 
 #
 # Libraries
@@ -137,4 +131,3 @@ $(OBJECTS): %.o:
 
 $(EXECUTABLES): %: $(BUILD_DIR)%.o $(LIBRARIES)
 	$(CC) $(CFLAGS) $< -o $@ -L$(LIB_DIR) $(LIBS)
-

@@ -2056,7 +2056,7 @@ int ToLevel(CompOp op) {
         case GT_OP:
         case LE_OP:
         case GE_OP:
-            return 1;
+            return 2;
         case LIKE_OP:
         case NE_OP:
         case NO_OP:
