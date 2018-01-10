@@ -406,8 +406,7 @@ RC SM_Manager::CreateTable(const char* relName, int fieldCount, Field* fields) {
         cout << attr.attrName
              << " " << (attr.attrType == INT ? "INT" :
                         attr.attrType == FLOAT ? "FLOAT" :
-                        attr.attrType == DATE ? "DATE" : "STRING")
-             << " " << attr.attrLength;
+                        attr.attrType == DATE ? "DATE" : "STRING");
         if (attr.isNotNull) {
             cout << " NOT NULL";
         }

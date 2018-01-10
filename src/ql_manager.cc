@@ -241,14 +241,14 @@ RC QL_Manager::SelectFunc(FuncType func, const RelAttr relAttrFunc, int nRelatio
     }
 
     // print
-    cout << "Select\n";
+    /*cout << "Select\n";
     cout << "   SelAttr = " << relAttrFunc << "\n";
     cout << "   nRelations = " << nRelations << "\n";
     for (int i = 0; i < nRelations; i++)
         cout << "   relations[" << i << "] " << relations[i] << "\n";
     cout << "   nCondtions = " << nConditions << "\n";
     for (int i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";*/
 
     return 0;
 }
@@ -913,14 +913,14 @@ RC QL_Manager::SelectGroup(FuncType func, const RelAttr relAttrFunc, const RelAt
     }
 
     // print
-    cout << "Select\n";
+    /*cout << "Select\n";
     cout << "   SelAttr = " << relAttrFunc << "\n";
     cout << "   nRelations = " << nRelations << "\n";
     for (int i = 0; i < nRelations; i++)
         cout << "   relations[" << i << "] " << relations[i] << "\n";
     cout << "   nCondtions = " << nConditions << "\n";
     for (int i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";*/
 
     return 0;
 }
@@ -1029,7 +1029,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
     }
 
     // print
-    cout << "Select\n";
+    /*cout << "Select\n";
     cout << "   nSelAttrs = " << nSelAttrs << "\n";
     for (int i = 0; i < nSelAttrs; i++)
         cout << "   selAttrs[" << i << "]:" << selAttrs[i] << "\n";
@@ -1038,7 +1038,7 @@ RC QL_Manager::Select(int nSelAttrs, const RelAttr selAttrs[], int nRelations, c
         cout << "   relations[" << i << "] " << relations[i] << "\n";
     cout << "   nCondtions = " << nConditions << "\n";
     for (int i = 0; i < nConditions; i++)
-        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
+        cout << "   conditions[" << i << "]:" << conditions[i] << "\n";*/
 
     return 0;
 }
@@ -1402,13 +1402,13 @@ RC QL_Manager::Delete(const char *relName, int nConditions, Condition conditions
     }
 
     // print
-    cout << "Delete\n";
+    /*cout << "Delete\n";
     cout << "   relName = " << relName << "\n";
     cout << "   nCondtions = " << nConditions << "\n";
     for (int i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
     
-    cout << "\n";
+    cout << "\n";*/
     //if ((rc = smManager.Print(relName))) {
     //    return rc;
     //}
@@ -1690,7 +1690,7 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     delete[] iters;
     
     // print
-    cout << "Update\n";
+    /*cout << "Update\n";
     cout << "   relName = " << relName << "\n";
     cout << "   nSetters = " << nSetters << "\n";
     for (int i = 0; i < nSetters; ++i) {
@@ -1701,7 +1701,7 @@ RC QL_Manager::Update(const char *relName, int nSetters, const RelAttr updAttrs[
     for (int i = 0; i < nConditions; i++)
         cout << "   conditions[" << i << "]:" << conditions[i] << "\n";
     
-    cout << "\n";
+    cout << "\n";*/
     //if ((rc = smManager.Print(relName))) {
     //    return rc;
     //}
