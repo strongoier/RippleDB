@@ -1,3 +1,9 @@
+<style>
+img {
+    width: 65%;
+}
+</style>
+
 # 数据库系统概论 项目报告
 
 计54 徐毅 (2015011334) <br>
@@ -23,13 +29,9 @@
 
 ![](createdb.jpg)
 
-此时会在当前目录下建立 orderDB 目录。
-
 - 删除名为 orderDB 的数据库：
 
 ![](dropdb.jpg)
-
-此时会在当前目录下删除 orderDB 目录。
 
 - 列出当前所有的数据库：
 
@@ -61,9 +63,11 @@
 
 - 打印系统表 relcat 的全部记录：
 
-![](print.jpg)
+<img src="print.jpg" width=65%>
 
 此时已经创建了 customer, book, website, price, orders 五个表。
+
+<br><br><br>
 
 - 为 customer 表的 name 字段创建 / 删除索引：
 
@@ -100,6 +104,8 @@
 
 分别提示了属性未找到、值与属性数量不符。
 
+<br><br><br><br><br><br><br><br><br><br>
+
 #### 更新
 
 正常更新如下：
@@ -119,6 +125,8 @@
 ![](select_ok.jpg)
 ![](select_ok2.jpg)
 
+<br>
+
 聚集查询如下：
 
 ![](select_func.jpg)
@@ -126,6 +134,8 @@
 分组聚集查询如下 (同时体现了扩展类型 FLOAT)：
 
 ![](select_group.jpg)
+
+<br><br>
 
 模糊查询如下：
 
